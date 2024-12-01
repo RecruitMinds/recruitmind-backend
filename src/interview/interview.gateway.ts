@@ -68,7 +68,7 @@ export class InterviewGateway {
         0,
       );
 
-      client.emit('question', { question });
+      client.emit('question', { question, questionIndex: 0 });
     } catch (error) {
       client.emit('error', { message: error.message });
     }
@@ -107,7 +107,10 @@ export class InterviewGateway {
             session.currentQuestionIndex,
           );
           this.activeSessions.set(client.id, session);
-          client.emit('question', nextQuestion);
+          client.emit('question', {
+            question: nextQuestion,
+            questionIndex: session.currentQuestionIndex,
+          });
         } else {
           // TODO: update complete interview status
           this.activeSessions.delete(client.id);
@@ -153,7 +156,10 @@ export class InterviewGateway {
             session.currentQuestionIndex,
           );
           this.activeSessions.set(client.id, session);
-          client.emit('question', nextQuestion);
+          client.emit('question', {
+            question: nextQuestion,
+            questionIndex: session.currentQuestionIndex,
+          });
         } else {
           // TODO: update complete interview status
 

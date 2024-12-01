@@ -3,17 +3,33 @@ import { ChatOpenAI } from '@langchain/openai';
 import { ChatGroq } from '@langchain/groq';
 import { ConfigService } from '@nestjs/config';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
-import { StringOutputParser } from '@langchain/core/output_parsers';
+import {
+  StringOutputParser,
+  JsonOutputParser,
+} from '@langchain/core/output_parsers';
 import { RunnableSequence } from '@langchain/core/runnables';
 import Redis from 'ioredis';
 
 interface InterviewContext {
   skillLevel: string;
-  questions: string[];
+  questions: QuestionResponse[];
   currentQuestion: string;
   currentSolution?: string;
   currentEvaluation?: any;
   followUpHistory: string[];
+}
+
+interface Example {
+  input: string;
+  output: string;
+  explanation: string;
+}
+
+interface QuestionResponse {
+  title: string;
+  description: string;
+  examples: Example[];
+  constraints: string[];
 }
 
 @Injectable()
@@ -27,7 +43,6 @@ export class AiService {
       apiKey: configService.get('GROQ_API_KEY'),
       model: 'llama3-70b-8192',
       temperature: 0.7,
-      verbose: true,
     });
     // this.chatModel = new ChatOpenAI({
     //   apiKey: configService.get('OPENAI_API_KEY'),
@@ -57,7 +72,7 @@ export class AiService {
     skillLevel: string | null,
     sessionId: string,
     questionIndex: number,
-  ): Promise<string> {
+  ): Promise<QuestionResponse> {
     let context = await this.getContext(sessionId);
 
     if (!context && !skillLevel) {
@@ -85,35 +100,29 @@ export class AiService {
       - Should be solvable within 15-20 minutes
       - Focus on practical software engineering scenarios
       
-      Format the response in markdown format EXACTLY as follows:
-
-      [problem statement]
-
-      ### Example 1:
-      \`\`\`
-        Input: [input parameters with exact format]
-        Output: [expected output]
-        Explanation: [detailed step-by-step explanation]
-      \`\`\`
-
-      ### Example 2:
-      \`\`\`
-        Input: [different input parameters]
-        Output: [expected output]
-        Explanation: [detailed explanation]
-      \`\`\`
-
-      ### Constraints:
-      - [list all constraints with proper formatting]
-      - [use mathematical notation where appropriate]
-
-      Only return the question statement and examples.
+      Return a JSON object with the following structure:
+      {{
+        "title": "Problem title",
+        "description": "Detailed problem description",
+        "examples": [
+          {{
+            "input": "Input parameters with exact format",
+            "output": "Expected output",
+            "explanation": "Detailed step-by-step explanation"
+          }}
+        ],
+        "constraints": [
+          "Constraint 1",
+          "Constraint 2"
+        ]
+      }}
     `);
 
+    const parser = new JsonOutputParser<QuestionResponse>();
     const chain = RunnableSequence.from([
       questionTemplate,
       this.chatModel,
-      new StringOutputParser(),
+      parser,
     ]);
 
     const response = await chain.invoke({
@@ -122,60 +131,12 @@ export class AiService {
       previousQuestions: JSON.stringify(context.questions),
     });
 
-    context.currentQuestion = response;
+    context.currentQuestion = JSON.stringify(response);
     context.questions.push(response);
     await this.saveContext(sessionId, context);
 
     return response;
   }
-
-  // async evaluateSolution(solution: string, sessionId: string) {
-  //   const context = await this.getContext(sessionId);
-  //   if (!context) {
-  //     throw new Error('Invalid session context');
-  //   }
-
-  //   const evaluationTemplate = ChatPromptTemplate.fromTemplate(`
-  //       Question: {question}
-  //       Submitted Solution: {solution}
-
-  //       Provide a detailed evaluation covering:
-  //       1. Correctness (0-100)
-  //       2. Time & Space Complexity Analysis
-  //       3. Code Quality & Best Practices (0-100)
-  //       4. Edge Cases Handling
-  //       5. Potential Improvements
-
-  //       Return the evaluation in the following JSON format:
-  //       {
-  //         "score": number,
-  //         "complexity": {
-  //           "time": string,
-  //           "space": string
-  //         },
-  //         "qualityScore": number,
-  //         "feedback": string[],
-  //         "improvements": string[]
-  //       }
-  //     `);
-
-  //   const chain = RunnableSequence.from([
-  //     evaluationTemplate,
-  //     this.chatModel,
-  //     new StringOutputParser(),
-  //   ]);
-
-  //   const evaluation = await chain.invoke({
-  //     question: context.currentQuestion,
-  //     solution,
-  //   });
-
-  //   context.currentSolution = solution;
-  //   context.currentEvaluation = evaluation;
-  //   await this.saveContext(sessionId, context);
-
-  //   return evaluation;
-  // }
 
   async generateFollowUpQuestion(
     solution: string,
@@ -207,7 +168,7 @@ export class AiService {
         - DO ask about specific lines or blocks of their code
         
         If the solution demonstrates clear understanding and no clarification is needed, 
-        respond with exactly "COMPLETE".
+        respond only with exactly "COMPLETE".
         Otherwise, provide only the follow-up question.
       `);
 
