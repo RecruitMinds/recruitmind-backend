@@ -74,6 +74,30 @@ export class InterviewGateway {
     }
   }
 
+  private async moveToNextQuestion(client: Socket, session: InterviewSession) {
+    session.currentQuestionIndex++;
+    session.followUpCount = 0;
+
+    if (session.currentQuestionIndex < 3) {
+      const nextQuestion = await this.aiService.generateQuestion(
+        null,
+        client.id,
+        session.currentQuestionIndex,
+      );
+
+      this.activeSessions.set(client.id, session);
+
+      client.emit('question', {
+        question: nextQuestion,
+        questionIndex: session.currentQuestionIndex,
+      });
+    } else {
+      // TODO: update complete interview status
+      this.activeSessions.delete(client.id);
+      client.emit('interviewCompleted');
+    }
+  }
+
   @SubscribeMessage('submitSolution')
   async handleSolution(
     @ConnectedSocket() client: Socket,
@@ -96,26 +120,7 @@ export class InterviewGateway {
         this.activeSessions.set(client.id, session);
         client.emit('followUpQuestion', followUpQuestion);
       } else {
-        // Move to next question since no follow-up needed
-        session.currentQuestionIndex++;
-        session.followUpCount = 0;
-
-        if (session.currentQuestionIndex < 3) {
-          const nextQuestion = await this.aiService.generateQuestion(
-            null,
-            client.id,
-            session.currentQuestionIndex,
-          );
-          this.activeSessions.set(client.id, session);
-          client.emit('question', {
-            question: nextQuestion,
-            questionIndex: session.currentQuestionIndex,
-          });
-        } else {
-          // TODO: update complete interview status
-          this.activeSessions.delete(client.id);
-          client.emit('interviewCompleted');
-        }
+        await this.moveToNextQuestion(client, session);
       }
     } catch (error) {
       client.emit('error', { message: error.message });
@@ -144,28 +149,7 @@ export class InterviewGateway {
         this.activeSessions.set(client.id, session);
         client.emit('followUpQuestion', nextFollowUp);
       } else {
-        // Move to next question or complete interview
-        session.currentQuestionIndex++;
-        session.followUpCount = 0;
-
-        if (session.currentQuestionIndex < 3) {
-          // Total 3 questions
-          const nextQuestion = await this.aiService.generateQuestion(
-            null, // skillLevel will be retrieved from stored context
-            client.id,
-            session.currentQuestionIndex,
-          );
-          this.activeSessions.set(client.id, session);
-          client.emit('question', {
-            question: nextQuestion,
-            questionIndex: session.currentQuestionIndex,
-          });
-        } else {
-          // TODO: update complete interview status
-
-          this.activeSessions.delete(client.id);
-          client.emit('interviewCompleted');
-        }
+        await this.moveToNextQuestion(client, session);
       }
     } catch (error) {
       client.emit('error', { message: error.message });

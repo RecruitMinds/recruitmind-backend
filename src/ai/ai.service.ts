@@ -41,7 +41,7 @@ export class AiService {
   constructor(private readonly configService: ConfigService) {
     this.chatModel = new ChatGroq({
       apiKey: configService.get('GROQ_API_KEY'),
-      model: 'llama3-70b-8192',
+      model: 'llama-3.1-70b-versatile',
       temperature: 0.7,
     });
     // this.chatModel = new ChatOpenAI({
