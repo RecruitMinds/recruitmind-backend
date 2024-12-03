@@ -148,29 +148,32 @@ export class AiService {
     }
 
     const followUpTemplate = ChatPromptTemplate.fromTemplate(`
-        Context:
-        Original Question: {question}
-        Candidate's Solution: {solution}
-        Previous Follow-ups: {previousFollowUps}
-  
-        First, evaluate if the solution demonstrates clear understanding. 
-        If the solution shows gaps in understanding or needs clarification, 
-        generate a follow-up question that:
-        1. Focuses on understanding how their solution works
-        2. Asks about specific parts of their implementation
-        3. Probes their understanding of the approach they chose
-        4. Questions their decision-making process
-        
-        Guidelines for follow-up:
-        - DO NOT ask about alternative solutions or optimizations
-        - DO NOT extend the original problem
-        - DO focus on their current solution only
-        - DO ask about specific lines or blocks of their code
-        
-        If the solution demonstrates clear understanding and no clarification is needed, 
-        respond only with exactly "COMPLETE".
-        Otherwise, provide only the follow-up question.
-      `);
+      Act as a technical interviewer conducting a live coding interview.
+      
+      Question: {question}
+      Candidate's Solution: {solution}
+      Previous Follow-ups: {previousFollowUps}
+
+      VALIDATION FIRST:
+      - IF solution is empty string OR
+      - IF solution only contains whitespace OR
+      - IF solution includes any variation of "I don't know", "idk", "not sure"
+      THEN RESPOND WITH "COMPLETE" IMMEDIATELY
+      DO NOT PROCEED FURTHER
+
+      ONLY IF VALID SOLUTION EXISTS:
+      1. Respond "COMPLETE" if understanding is clear
+      2. Otherwise, ask one simple question about their EXISTING code
+      
+      Strict Guidelines:
+      - ZERO QUESTIONS if solution is empty/unclear
+      - ONLY ask about code that is ACTUALLY WRITTEN
+      - NO hypothetical questions
+      - NO questions about missing implementations
+      
+      Output ONLY:
+      "COMPLETE" or a single question about existing code
+    `);
 
     const chain = RunnableSequence.from([
       followUpTemplate,
@@ -205,28 +208,32 @@ export class AiService {
     }
 
     const followUpTemplate = ChatPromptTemplate.fromTemplate(`
-      Context:
-      Original Question: {question}
-      Candidate Solution: {solution}
+      Act as a technical interviewer conducting a live coding interview.
+      
+      Question: {question}
+      Solution: {solution}
       Previous Follow-ups: {previousFollowUps}
       Latest Answer: {answer}
 
-      First, evaluate if the answer demonstrates clear understanding.
-      If the answer shows gaps in understanding or needs clarification,
-      generate a follow-up question that:
-      1. Focuses on understanding how their solution works
-      2. Asks about specific parts that still need clarification
-      3. Probes deeper into any unclear explanations
+      VALIDATION FIRST:
+      - IF answer is empty string OR
+      - IF answer only contains whitespace OR
+      - IF answer includes any variation of "I don't know", "idk", "not sure"
+      THEN RESPOND WITH "COMPLETE" IMMEDIATELY
+      DO NOT PROCEED FURTHER
+
+      ONLY IF VALID ANSWER EXISTS:
+      1. Respond "COMPLETE" if understanding is clear
+      2. Otherwise, ask one simple question about their explanation
       
-      Guidelines for follow-up:
-      - DO NOT ask about alternative solutions or optimizations
-      - DO NOT extend the original problem
-      - DO focus on their current solution and explanation
-      - DO ask specific questions about their understanding
+      Strict Guidelines:
+      - ZERO QUESTIONS if answer is empty/unclear
+      - ONLY ask about what was ACTUALLY EXPLAINED
+      - NO hypothetical questions
+      - NO questions about missing details
       
-      If the answer demonstrates clear understanding and no clarification is needed,
-      respond with exactly "COMPLETE".
-      Otherwise, provide only the follow-up question.
+      Output ONLY:
+      "COMPLETE" or a single question about their explanation
     `);
 
     const chain = RunnableSequence.from([
