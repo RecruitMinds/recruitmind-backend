@@ -35,6 +35,14 @@ export class CandidateInterview {
       }[];
     }[];
   };
+
+  @Prop({ type: MongooseSchema.Types.Date })
+  // @Field(() => Date, { description: 'Created At' })
+  createdAt?: Date;
+
+  @Prop()
+  // @Field(() => Date, { description: 'Updated At' })
+  updatedAt?: Date;
 }
 
 export const CandidateInterviewSchema =
