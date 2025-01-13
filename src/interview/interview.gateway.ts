@@ -6,9 +6,11 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Socket, Server } from 'socket.io';
+import { UnauthorizedException } from '@nestjs/common';
+
 import { InterviewService } from './interview.service';
 import { AiService } from 'src/ai/ai.service';
-import { UnauthorizedException } from '@nestjs/common';
+import { InterviewStatus } from './enums/candidateInterview.enum';
 
 interface InterviewSession {
   interviewId: string;
@@ -40,7 +42,7 @@ export class InterviewGateway {
           payload.invitationToken,
         );
 
-      if (candidateInterview.status === 'COMPLETED') {
+      if (candidateInterview.status === InterviewStatus.COMPLETED) {
         throw new UnauthorizedException('Interview already completed');
       }
 

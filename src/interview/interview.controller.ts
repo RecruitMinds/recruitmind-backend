@@ -15,6 +15,7 @@ import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { InviteCandidateDto } from './dto/invite-candidate.dto';
 import { UpdateInterviewDto } from './dto/update-interview.dto';
+import { InterviewStatus } from './enums/interview.enum';
 
 @Controller('interview')
 export class InterviewController {
@@ -28,9 +29,10 @@ export class InterviewController {
   @Get()
   async getAll(
     @Query() paginationDto: PaginationDto,
+    @Query('status') status: InterviewStatus,
     @Query('recruiterId') recruiterId: string,
   ) {
-    return this.interviewService.getAll(recruiterId, paginationDto);
+    return this.interviewService.getAll(recruiterId, paginationDto, status);
   }
 
   @Get(':id')
@@ -60,10 +62,5 @@ export class InterviewController {
     @Body() inviteDto: InviteCandidateDto,
   ) {
     return this.interviewService.inviteCandidate(interviewId, inviteDto);
-  }
-
-  @Get(':id/results')
-  async getInterviewResults(@Param('id') interviewId: string) {
-    return this.interviewService.getResults(interviewId);
   }
 }

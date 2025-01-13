@@ -9,3 +9,9 @@ export enum SkillLevel {
   MEDIUM = 'medium',
   HARD = 'hard',
 }
+
+export enum WorkArrangements {
+  REMOTE = 'remote',
+  ONSITE = 'onsite',
+  HYBRID = 'hybrid',
+}

@@ -1,16 +1,29 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Schema as MongooseSchema } from 'mongoose';
-import { InterviewStatus, SkillLevel } from '../enums/interview.enum';
+import {
+  InterviewStatus,
+  SkillLevel,
+  WorkArrangements,
+} from '../enums/interview.enum';
 
 export type InterviewDocument = HydratedDocument<Interview>;
 
 @Schema({ timestamps: true })
 export class Interview {
   @Prop({ required: true })
-  title: string;
+  name: string;
 
   @Prop()
   description: string;
+
+  @Prop()
+  role: string;
+
+  @Prop()
+  location: string;
+
+  @Prop({ type: String, enum: WorkArrangements })
+  workArrangements: WorkArrangements;
 
   @Prop({ type: String, enum: SkillLevel, required: true })
   skillLevel: SkillLevel;

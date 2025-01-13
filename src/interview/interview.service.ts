@@ -1,4 +1,4 @@
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import { InjectModel } from '@nestjs/mongoose';
 import { Injectable, NotFoundException } from '@nestjs/common';
@@ -11,6 +11,9 @@ import { UpdateInterviewDto } from './dto/update-interview.dto';
 import { Interview } from './schemas/interview.schema';
 import { CandidateInterview } from './schemas/candidate-interview.schema';
 import { Candidate } from 'src/candidate/schemas/candidate.schema';
+
+import { InterviewStatus } from './enums/interview.enum';
+import { InterviewStatus as CaInterviewStatus } from './enums/candidateInterview.enum';
 
 @Injectable()
 export class InterviewService {
@@ -28,19 +31,95 @@ export class InterviewService {
     return interview.save();
   }
 
-  async getAll(recruiterId: string, paginationDto: PaginationDto) {
+  async getAll(
+    recruiterId: string,
+    paginationDto: PaginationDto,
+    status: InterviewStatus,
+  ) {
     const { page, limit } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const [interviews, total] = await Promise.all([
-      this.interviewModel
-        .find({ recruiter: recruiterId })
-        .skip(skip)
-        .limit(limit)
-        .sort({ createdAt: -1 })
-        .exec(),
-      this.interviewModel.countDocuments({ recruiter: recruiterId }),
+    const matchStage: any = {
+      recruiter: new Types.ObjectId(recruiterId),
+    };
+
+    if (status) {
+      matchStage.status = status;
+    }
+
+    const interviews = await this.interviewModel.aggregate([
+      { $match: matchStage },
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: Number(limit) },
+      {
+        $lookup: {
+          from: 'candidateinterviews',
+          localField: '_id',
+          foreignField: 'interviewId',
+          as: 'candidateInterviews',
+        },
+      },
+      {
+        $addFields: {
+          candidates: { $size: '$candidateInterviews' },
+          invited: {
+            $size: {
+              $filter: {
+                input: '$candidateInterviews',
+                cond: { $eq: ['$$this.status', CaInterviewStatus.INVITED] },
+              },
+            },
+          },
+          started: {
+            $size: {
+              $filter: {
+                input: '$candidateInterviews',
+                cond: { $eq: ['$$this.status', CaInterviewStatus.STARTED] },
+              },
+            },
+          },
+          completed: {
+            $size: {
+              $filter: {
+                input: '$candidateInterviews',
+                cond: { $eq: ['$$this.status', CaInterviewStatus.COMPLETED] },
+              },
+            },
+          },
+          disqualified: {
+            $size: {
+              $filter: {
+                input: '$candidateInterviews',
+                cond: {
+                  $eq: ['$$this.status', CaInterviewStatus.DISQUALIFIED],
+                },
+              },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          completed_percentage: {
+            $cond: [
+              { $eq: ['$candidates', 0] },
+              null,
+              {
+                $multiply: [{ $divide: ['$completed', '$candidates'] }, 100],
+              },
+            ],
+          },
+        },
+      },
+      {
+        $project: {
+          candidateInterviews: 0,
+        },
+      },
     ]);
+
+    const total = await this.interviewModel.countDocuments(matchStage);
 
     return {
       data: interviews,
@@ -75,8 +154,10 @@ export class InterviewService {
       interview,
       candidates: candidateInterviews.map((ci) => ({
         candidate: ci.candidateId,
+        stage: ci.stage,
         status: ci.status,
-        results: ci.results,
+        technicalInterview: ci.technicalInterview,
+        technicalAssessment: ci.technicalAssessment,
         createdAt: ci.createdAt,
         updatedAt: ci.updatedAt,
       })),
@@ -145,7 +226,6 @@ export class InterviewService {
     const candidateInterview = new this.candidateInterviewModel({
       candidateId: candidate._id,
       interviewId,
-      status: 'INVITED',
       invitationToken,
     });
 
@@ -158,14 +238,6 @@ export class InterviewService {
     //   invitationToken,
     //   interview.title,
     // );
-  }
-
-  async getResults(interviewId: string) {
-    const candidateInterview = await this.candidateInterviewModel.findOne({
-      interviewId,
-    });
-
-    return candidateInterview;
   }
 
   async validateInvitationToken(token: string) {
