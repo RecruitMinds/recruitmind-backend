@@ -7,6 +7,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { InterviewSchema } from './schemas/interview.schema';
 import { CandidateSchema } from 'src/candidate/schemas/candidate.schema';
 import { CandidateInterviewSchema } from './schemas/candidate-interview.schema';
+import { MailModule } from 'src/mail/mail.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { CandidateInterviewSchema } from './schemas/candidate-interview.schema';
       { name: 'Candidate', schema: CandidateSchema },
       { name: 'CandidateInterview', schema: CandidateInterviewSchema },
     ]),
+    MailModule,
   ],
   providers: [InterviewGateway, InterviewService, AiService],
   controllers: [InterviewController],

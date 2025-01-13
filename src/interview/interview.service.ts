@@ -14,6 +14,7 @@ import { Candidate } from 'src/candidate/schemas/candidate.schema';
 
 import { InterviewStatus } from './enums/interview.enum';
 import { InterviewStatus as CaInterviewStatus } from './enums/candidateInterview.enum';
+import { MailService } from 'src/mail/mail.service';
 
 @Injectable()
 export class InterviewService {
@@ -24,6 +25,7 @@ export class InterviewService {
     private readonly candidateModel: Model<Candidate>,
     @InjectModel(CandidateInterview.name)
     private readonly candidateInterviewModel: Model<CandidateInterview>,
+    private readonly mailService: MailService,
   ) {}
 
   async create(createInterviewDto: CreateInterviewDto) {
@@ -233,11 +235,14 @@ export class InterviewService {
 
     await candidate.save();
     await candidateInterview.save();
-    // await this.mailService.sendInterviewInvitation(
-    //   candidate.email,
-    //   invitationToken,
-    //   interview.title,
-    // );
+
+    // TODO: Add Company info and Change URL
+    this.mailService.sendInterviewInvitation(candidate.email, {
+      name: `${candidate.firstName} ${candidate.lastName}`,
+      role: interview.role,
+      company: 'IFS',
+      invitationLink: `http://localhost:3001/interview?token=${invitationToken}`,
+    });
   }
 
   async validateInvitationToken(token: string) {

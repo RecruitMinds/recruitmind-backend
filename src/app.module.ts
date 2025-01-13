@@ -4,6 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { InterviewModule } from './interview/interview.module';
 import { AiService } from './ai/ai.service';
 import { CandidateModule } from './candidate/candidate.module';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { CandidateModule } from './candidate/candidate.module';
     }),
     InterviewModule,
     CandidateModule,
+    MailModule,
   ],
   providers: [AiService],
 })
