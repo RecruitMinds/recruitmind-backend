@@ -12,9 +12,9 @@ import { Interview } from './schemas/interview.schema';
 import { CandidateInterview } from './schemas/candidate-interview.schema';
 import { Candidate } from 'src/candidate/schemas/candidate.schema';
 
+import { MailService } from 'src/mail/mail.service';
 import { InterviewStatus } from './enums/interview.enum';
 import { InterviewStatus as CaInterviewStatus } from './enums/candidateInterview.enum';
-import { MailService } from 'src/mail/mail.service';
 
 @Injectable()
 export class InterviewService {
@@ -28,8 +28,11 @@ export class InterviewService {
     private readonly mailService: MailService,
   ) {}
 
-  async create(createInterviewDto: CreateInterviewDto) {
-    const interview = new this.interviewModel(createInterviewDto);
+  async create(recruiterId: string, createInterviewDto: CreateInterviewDto) {
+    const interview = new this.interviewModel({
+      recruiter: recruiterId,
+      ...createInterviewDto,
+    });
     return interview.save();
   }
 
@@ -42,7 +45,7 @@ export class InterviewService {
     const skip = (page - 1) * limit;
 
     const matchStage: any = {
-      recruiter: new Types.ObjectId(recruiterId),
+      recruiter: recruiterId,
     };
 
     if (status) {

@@ -7,39 +7,47 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { User } from '@clerk/express';
 
 import { InterviewService } from './interview.service';
+import { InterviewStatus } from './enums/interview.enum';
+import { ClerkAuthGuard } from 'src/common/guards/clerk-auth.guard';
+import { Recruiter } from 'src/common/decorators/recruiter.decorator';
 
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { InviteCandidateDto } from './dto/invite-candidate.dto';
 import { UpdateInterviewDto } from './dto/update-interview.dto';
-import { InterviewStatus } from './enums/interview.enum';
 
 @Controller('interview')
+@UseGuards(ClerkAuthGuard)
 export class InterviewController {
   constructor(private readonly interviewService: InterviewService) {}
 
   @Post()
-  async createInterview(@Body() createInterviewDto: CreateInterviewDto) {
-    return this.interviewService.create(createInterviewDto);
+  async createInterview(
+    @Recruiter() recruiter: User,
+    @Body() createInterviewDto: CreateInterviewDto,
+  ) {
+    const recruiterId = recruiter.id;
+    return this.interviewService.create(recruiterId, createInterviewDto);
   }
 
   @Get()
   async getAll(
     @Query() paginationDto: PaginationDto,
     @Query('status') status: InterviewStatus,
-    @Query('recruiterId') recruiterId: string,
+    @Recruiter() recruiter: User,
   ) {
+    const recruiterId = recruiter.id;
     return this.interviewService.getAll(recruiterId, paginationDto, status);
   }
 
   @Get(':id')
-  async getInterview(
-    @Param('id') id: string,
-    @Query('recruiterId') recruiterId: string,
-  ) {
+  async getInterview(@Param('id') id: string, @Recruiter() recruiter: User) {
+    const recruiterId = recruiter.id;
     return this.interviewService.getInterviewWithResults(id, recruiterId);
   }
 

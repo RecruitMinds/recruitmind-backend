@@ -35,8 +35,4 @@ export class CreateInterviewDto {
   @ApiProperty({ enum: InterviewStatus, default: InterviewStatus.INACTIVE })
   @IsEnum(InterviewStatus)
   status: InterviewStatus;
-
-  @ApiProperty()
-  @IsString()
-  recruiter: string;
 }

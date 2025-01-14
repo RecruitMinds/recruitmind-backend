@@ -36,7 +36,7 @@ export class Interview {
   })
   status: InterviewStatus;
 
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Recruiter' })
+  @Prop({ type: String, required: true })
   recruiter: string;
 }
 

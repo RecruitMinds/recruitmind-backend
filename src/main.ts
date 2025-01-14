@@ -1,14 +1,23 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
+import { ConfigService } from '@nestjs/config';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import { clerkMiddleware } from '@clerk/express';
+
+import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  app.enableCors();
+  const configService = app.get(ConfigService);
+  const allowedOrigins = configService
+    .get<string>('ALLOWED_ORIGINS')
+    .split(',');
+
+  app.enableCors({ origin: allowedOrigins, credentials: true });
   app.use(helmet());
+  app.use(clerkMiddleware());
 
   app.enableVersioning({ prefix: 'api/v1', type: VersioningType.URI });
 
