@@ -41,7 +41,7 @@ export class InterviewService {
     paginationDto: PaginationDto,
     status: InterviewStatus,
   ) {
-    const { page, limit } = paginationDto;
+    const { page, limit, search } = paginationDto;
     const skip = (page - 1) * limit;
 
     const matchStage: any = {
@@ -50,6 +50,13 @@ export class InterviewService {
 
     if (status) {
       matchStage.status = status;
+    }
+
+    if (search) {
+      matchStage.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { role: { $regex: search, $options: 'i' } },
+      ];
     }
 
     const interviews = await this.interviewModel.aggregate([

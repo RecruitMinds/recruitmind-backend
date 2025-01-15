@@ -17,10 +17,18 @@ export class CandidateService {
     paginationDto: PaginationDto,
     interview?: string,
   ) {
-    const { page, limit } = paginationDto;
+    const { page, limit, search } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const matchStage = { recruiter: recruiterId };
+    const matchStage: any = { recruiter: recruiterId };
+
+    if (search) {
+      matchStage.$or = [
+        { firstName: { $regex: search, $options: 'i' } },
+        { lastName: { $regex: search, $options: 'i' } },
+      ];
+    }
+
     const pipeline: any[] = [
       {
         $lookup: {
