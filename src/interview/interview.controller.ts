@@ -10,6 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { User } from '@clerk/express';
+import { ApiOperation } from '@nestjs/swagger';
 
 import { InterviewService } from './interview.service';
 import { InterviewStatus } from './enums/interview.enum';
@@ -20,7 +21,6 @@ import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { InviteCandidateDto } from './dto/invite-candidate.dto';
 import { UpdateInterviewDto } from './dto/update-interview.dto';
-import { ApiOperation } from '@nestjs/swagger';
 
 @Controller('interview')
 @UseGuards(ClerkAuthGuard)
@@ -46,6 +46,13 @@ export class InterviewController {
   ) {
     const recruiterId = recruiter.id;
     return this.interviewService.getAll(recruiterId, paginationDto, status);
+  }
+
+  @Get('list')
+  @ApiOperation({ summary: 'Get simplified list of active interviews' })
+  async getInterviewList(@Recruiter() recruiter: User) {
+    const recruiterId = recruiter.id;
+    return this.interviewService.getInterviewList(recruiterId);
   }
 
   @Get(':id')

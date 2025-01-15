@@ -176,6 +176,22 @@ export class InterviewService {
     };
   }
 
+  async getInterviewList(recruiterId: string) {
+    return this.interviewModel
+      .find(
+        {
+          recruiter: recruiterId,
+          status: InterviewStatus.ACTIVE,
+        },
+        {
+          _id: 1,
+          name: 1,
+        },
+      )
+      .sort({ name: 1 })
+      .exec();
+  }
+
   async getAllInvitableInterviews(candidateId: string, recruiterId: string) {
     const pipeline = [
       // Match active interviews belonging to recruiter
