@@ -20,6 +20,7 @@ import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { InviteCandidateDto } from './dto/invite-candidate.dto';
 import { UpdateInterviewDto } from './dto/update-interview.dto';
+import { ApiOperation } from '@nestjs/swagger';
 
 @Controller('interview')
 @UseGuards(ClerkAuthGuard)
@@ -27,6 +28,7 @@ export class InterviewController {
   constructor(private readonly interviewService: InterviewService) {}
 
   @Post()
+  @ApiOperation({ summary: 'Create a new interview' })
   async createInterview(
     @Recruiter() recruiter: User,
     @Body() createInterviewDto: CreateInterviewDto,
@@ -36,6 +38,7 @@ export class InterviewController {
   }
 
   @Get()
+  @ApiOperation({ summary: 'Get all interviews with pagination and filters' })
   async getAll(
     @Query() paginationDto: PaginationDto,
     @Query('status') status: InterviewStatus,
@@ -46,12 +49,27 @@ export class InterviewController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Get interview with candidate results' })
   async getInterview(@Param('id') id: string, @Recruiter() recruiter: User) {
     const recruiterId = recruiter.id;
     return this.interviewService.getInterviewWithResults(id, recruiterId);
   }
 
+  @Get('candidates/:id/invitable')
+  @ApiOperation({ summary: 'Get all invitable interviews' })
+  getAllInvitableInterviews(
+    @Param('id') candidateId: string,
+    @Recruiter() recruiter: User,
+  ) {
+    const recruiterId = recruiter.id;
+    return this.interviewService.getAllInvitableInterviews(
+      candidateId,
+      recruiterId,
+    );
+  }
+
   @Patch(':id')
+  @ApiOperation({ summary: 'Update interview details' })
   async updateInterview(
     @Param('id') id: string,
     @Body() updateInterviewDto: UpdateInterviewDto,
@@ -60,15 +78,23 @@ export class InterviewController {
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Delete an interview' })
   async deleteInterview(@Param('id') id: string) {
     return this.interviewService.delete(id);
   }
 
   @Post(':id/invite')
+  @ApiOperation({ summary: 'Invite a candidate to an interview' })
   async inviteCandidate(
     @Param('id') interviewId: string,
+    @Recruiter() recruiter: User,
     @Body() inviteDto: InviteCandidateDto,
   ) {
-    return this.interviewService.inviteCandidate(interviewId, inviteDto);
+    const recruiterId = recruiter.id;
+    return this.interviewService.inviteCandidate(
+      interviewId,
+      recruiterId,
+      inviteDto,
+    );
   }
 }

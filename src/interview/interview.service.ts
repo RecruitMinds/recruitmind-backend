@@ -169,6 +169,53 @@ export class InterviewService {
     };
   }
 
+  async getAllInvitableInterviews(candidateId: string, recruiterId: string) {
+    const pipeline = [
+      // Match active interviews belonging to recruiter
+      {
+        $match: {
+          recruiter: recruiterId,
+          status: InterviewStatus.ACTIVE,
+        },
+      },
+      // Lookup candidate's existing interviews
+      {
+        $lookup: {
+          from: 'candidateinterviews',
+          let: { interviewId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$candidateId', new Types.ObjectId(candidateId)] },
+                    { $eq: ['$interviewId', '$$interviewId'] },
+                  ],
+                },
+              },
+            },
+          ],
+          as: 'existingInvitations',
+        },
+      },
+      // Filter out interviews with existing invitations
+      {
+        $match: {
+          existingInvitations: { $size: 0 },
+        },
+      },
+      // Project only required fields
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+        },
+      },
+    ];
+
+    return await this.interviewModel.aggregate(pipeline);
+  }
+
   async update(interviewId: string, updateInterviewDto: UpdateInterviewDto) {
     const interview = await this.interviewModel.findOneAndUpdate(
       { _id: interviewId },
@@ -213,7 +260,11 @@ export class InterviewService {
     return interview;
   }
 
-  async inviteCandidate(interviewId: string, inviteDto: InviteCandidateDto) {
+  async inviteCandidate(
+    interviewId: string,
+    recruiterId: string,
+    inviteDto: InviteCandidateDto,
+  ) {
     const interview = await this.interviewModel.findById(interviewId);
     if (!interview) {
       throw new NotFoundException('Interview not found');
@@ -221,11 +272,15 @@ export class InterviewService {
 
     let candidate = await this.candidateModel.findOne({
       email: inviteDto.email,
+      recruiter: recruiterId,
     });
     const invitationToken = uuidv4();
 
     if (!candidate) {
-      candidate = new this.candidateModel({ ...inviteDto });
+      candidate = new this.candidateModel({
+        ...inviteDto,
+        recruiter: recruiterId,
+      });
     }
 
     const candidateInterview = new this.candidateInterviewModel({
