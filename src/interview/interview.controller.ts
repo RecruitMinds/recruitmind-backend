@@ -10,12 +10,16 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { User } from '@clerk/express';
-import { ApiOperation } from '@nestjs/swagger';
+import { ApiOperation, ApiQuery } from '@nestjs/swagger';
 
 import { InterviewService } from './interview.service';
-import { InterviewStatus } from './enums/interview.enum';
 import { ClerkAuthGuard } from 'src/common/guards/clerk-auth.guard';
 import { Recruiter } from 'src/common/decorators/recruiter.decorator';
+import { InterviewStatus } from './enums/interview.enum';
+import {
+  HiringStage,
+  InterviewStatus as CaInterviewStatus,
+} from './enums/candidateInterview.enum';
 
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { CreateInterviewDto } from './dto/create-interview.dto';
@@ -64,16 +68,22 @@ export class InterviewController {
 
   @Get(':id/candidates')
   @ApiOperation({ summary: 'Get all candidates related interview' })
+  @ApiQuery({ name: 'stage', enum: HiringStage, required: false })
+  @ApiQuery({ name: 'status', enum: CaInterviewStatus, required: false })
   async getInterviewCandidates(
     @Param('id') interviewId: string,
     @Recruiter() recruiter: User,
     @Query() paginationDto: PaginationDto,
+    @Query('stage') stage?: HiringStage,
+    @Query('status') status?: CaInterviewStatus,
   ) {
     const recruiterId = recruiter.id;
     return this.interviewService.getInterviewCandidates(
       interviewId,
       recruiterId,
       paginationDto,
+      stage,
+      status,
     );
   }
 

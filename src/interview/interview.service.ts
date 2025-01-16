@@ -14,7 +14,10 @@ import { Candidate } from 'src/candidate/schemas/candidate.schema';
 
 import { MailService } from 'src/mail/mail.service';
 import { InterviewStatus } from './enums/interview.enum';
-import { InterviewStatus as CaInterviewStatus } from './enums/candidateInterview.enum';
+import {
+  HiringStage,
+  InterviewStatus as CaInterviewStatus,
+} from './enums/candidateInterview.enum';
 
 @Injectable()
 export class InterviewService {
@@ -177,21 +180,13 @@ export class InterviewService {
     interviewId: string,
     recruiterId: string,
     paginationDto: PaginationDto,
+    stage?: HiringStage,
+    status?: CaInterviewStatus,
   ) {
     const { page, limit, search } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const matchStage: any = {
-      interviewId: new Types.ObjectId(interviewId),
-    };
-
-    if (search) {
-      matchStage.$or = [
-        { 'candidate.firstName': { $regex: search, $options: 'i' } },
-        { 'candidate.lastName': { $regex: search, $options: 'i' } },
-      ];
-    }
-
+    // Base pipeline stages
     const pipeline: PipelineStage[] = [
       {
         $match: {
@@ -212,6 +207,41 @@ export class InterviewService {
           'candidate.recruiter': recruiterId,
         },
       },
+    ];
+
+    // Add stage filter if provided
+    if (stage) {
+      pipeline.push({
+        $match: { stage },
+      });
+    }
+
+    // Add status filter if provided
+    if (status) {
+      pipeline.push({
+        $match: { status },
+      });
+    }
+
+    // Add search filter if provided
+    if (search) {
+      pipeline.push({
+        $match: {
+          $expr: {
+            $regexMatch: {
+              input: {
+                $concat: ['$candidate.firstName', ' ', '$candidate.lastName'],
+              },
+              regex: search,
+              options: 'i',
+            },
+          },
+        },
+      });
+    }
+
+    // Add projection and pagination stages
+    pipeline.push(
       {
         $project: {
           _id: '$candidate._id',
@@ -233,18 +263,24 @@ export class InterviewService {
       { $sort: { createdAt: -1 } },
       { $skip: skip },
       { $limit: Number(limit) },
-    ];
+    );
 
     const candidates = await this.candidateInterviewModel.aggregate(pipeline);
-    const total = await this.candidateInterviewModel.countDocuments(matchStage);
+
+    // Count total documents with the same filters (excluding pagination)
+    const countPipeline = pipeline.slice(0, -3); // Remove projection, skip, and limit stages
+    const [{ total = 0 } = {}] = await this.candidateInterviewModel.aggregate([
+      ...countPipeline,
+      { $count: 'total' },
+    ]);
 
     return {
       data: candidates,
       meta: {
-        total,
+        total: total || 0,
         page,
         limit,
-        totalPages: Math.ceil(total / limit),
+        totalPages: Math.ceil((total || 0) / limit),
       },
     };
   }
