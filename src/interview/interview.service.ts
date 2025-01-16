@@ -144,7 +144,7 @@ export class InterviewService {
     };
   }
 
-  async getInterviewWithResults(interviewId: string, recruiterId: string) {
+  async getInterview(interviewId: string, recruiterId: string) {
     const interview = await this.interviewModel.findOne({
       _id: interviewId,
       recruiter: recruiterId,
@@ -154,26 +154,7 @@ export class InterviewService {
       throw new NotFoundException('Interview not found');
     }
 
-    const candidateInterviews = await this.candidateInterviewModel
-      .find({ interviewId })
-      .populate({
-        path: 'candidateId',
-        select: 'firstName lastName email',
-      })
-      .select('status results createdAt updatedAt');
-
-    return {
-      interview,
-      candidates: candidateInterviews.map((ci) => ({
-        candidate: ci.candidateId,
-        stage: ci.stage,
-        status: ci.status,
-        technicalInterview: ci.technicalInterview,
-        technicalAssessment: ci.technicalAssessment,
-        createdAt: ci.createdAt,
-        updatedAt: ci.updatedAt,
-      })),
-    };
+    return interview;
   }
 
   async getInterviewList(recruiterId: string) {

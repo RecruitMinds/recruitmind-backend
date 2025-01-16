@@ -56,10 +56,10 @@ export class InterviewController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get interview with candidate results' })
+  @ApiOperation({ summary: 'Get interview detail' })
   async getInterview(@Param('id') id: string, @Recruiter() recruiter: User) {
     const recruiterId = recruiter.id;
-    return this.interviewService.getInterviewWithResults(id, recruiterId);
+    return this.interviewService.getInterview(id, recruiterId);
   }
 
   @Get('candidates/:id/invitable')
