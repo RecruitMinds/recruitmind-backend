@@ -62,6 +62,21 @@ export class InterviewController {
     return this.interviewService.getInterview(id, recruiterId);
   }
 
+  @Get(':id/candidates')
+  @ApiOperation({ summary: 'Get all candidates related interview' })
+  async getInterviewCandidates(
+    @Param('id') interviewId: string,
+    @Recruiter() recruiter: User,
+    @Query() paginationDto: PaginationDto,
+  ) {
+    const recruiterId = recruiter.id;
+    return this.interviewService.getInterviewCandidates(
+      interviewId,
+      recruiterId,
+      paginationDto,
+    );
+  }
+
   @Get('candidates/:id/invitable')
   @ApiOperation({ summary: 'Get all invitable interviews' })
   getAllInvitableInterviews(

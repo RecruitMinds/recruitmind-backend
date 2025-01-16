@@ -1,4 +1,4 @@
-import { Model, Types } from 'mongoose';
+import { Model, Types, PipelineStage } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import { InjectModel } from '@nestjs/mongoose';
 import { Injectable, NotFoundException } from '@nestjs/common';
@@ -144,19 +144,6 @@ export class InterviewService {
     };
   }
 
-  async getInterview(interviewId: string, recruiterId: string) {
-    const interview = await this.interviewModel.findOne({
-      _id: interviewId,
-      recruiter: recruiterId,
-    });
-
-    if (!interview) {
-      throw new NotFoundException('Interview not found');
-    }
-
-    return interview;
-  }
-
   async getInterviewList(recruiterId: string) {
     return this.interviewModel
       .find(
@@ -171,6 +158,95 @@ export class InterviewService {
       )
       .sort({ name: 1 })
       .exec();
+  }
+
+  async getInterview(interviewId: string, recruiterId: string) {
+    const interview = await this.interviewModel.findOne({
+      _id: interviewId,
+      recruiter: recruiterId,
+    });
+
+    if (!interview) {
+      throw new NotFoundException('Interview not found');
+    }
+
+    return interview;
+  }
+
+  async getInterviewCandidates(
+    interviewId: string,
+    recruiterId: string,
+    paginationDto: PaginationDto,
+  ) {
+    const { page, limit, search } = paginationDto;
+    const skip = (page - 1) * limit;
+
+    const matchStage: any = {
+      interviewId: new Types.ObjectId(interviewId),
+    };
+
+    if (search) {
+      matchStage.$or = [
+        { 'candidate.firstName': { $regex: search, $options: 'i' } },
+        { 'candidate.lastName': { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const pipeline: PipelineStage[] = [
+      {
+        $match: {
+          interviewId: new Types.ObjectId(interviewId),
+        },
+      },
+      {
+        $lookup: {
+          from: 'candidates',
+          localField: 'candidateId',
+          foreignField: '_id',
+          as: 'candidate',
+        },
+      },
+      { $unwind: '$candidate' },
+      {
+        $match: {
+          'candidate.recruiter': recruiterId,
+        },
+      },
+      {
+        $project: {
+          _id: '$candidate._id',
+          status: 1,
+          stage: 1,
+          technicalInterview: 1,
+          technicalAssessment: 1,
+          rating: 1,
+          comment: 1,
+          finalScore: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          fullName: {
+            $concat: ['$candidate.firstName', ' ', '$candidate.lastName'],
+          },
+          email: '$candidate.email',
+        },
+      },
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: Number(limit) },
+    ];
+
+    const candidates = await this.candidateInterviewModel.aggregate(pipeline);
+    const total = await this.candidateInterviewModel.countDocuments(matchStage);
+
+    return {
+      data: candidates,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async getAllInvitableInterviews(candidateId: string, recruiterId: string) {
