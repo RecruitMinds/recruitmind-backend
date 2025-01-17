@@ -2,30 +2,43 @@ import { Prop, Schema } from '@nestjs/mongoose';
 
 @Schema()
 export class TechnicalInterview {
-  @Prop()
+  @Prop({ type: Number })
   totalScore: number;
+
+  @Prop({ type: Number })
+  technicalSkillsScore: number;
+
+  @Prop({ type: Number })
+  softSkillsScore: number;
 
   @Prop([
     {
       question: String,
-      candidateAnswer: String,
-      score: Number,
+      answer: String,
+      evaluation: String,
     },
   ])
   questions: Array<{
     question: string;
-    candidateAnswer: string;
-    score: number;
+    answer: string;
     evaluation: string;
   }>;
 
-  @Prop()
-  transcript: string;
+  @Prop([
+    {
+      role: String,
+      content: String,
+    },
+  ])
+  transcript: Array<{
+    role: string;
+    content: string;
+  }>;
 }
 
 @Schema()
 export class TechnicalAssessment {
-  @Prop()
+  @Prop({ type: Number })
   totalScore: number;
 
   @Prop([
@@ -51,6 +64,14 @@ export class TechnicalAssessment {
     evaluation: string;
   }>;
 
-  @Prop()
-  transcript: string;
+  @Prop([
+    {
+      role: String,
+      content: String,
+    },
+  ])
+  transcript: Array<{
+    role: string;
+    content: string;
+  }>;
 }

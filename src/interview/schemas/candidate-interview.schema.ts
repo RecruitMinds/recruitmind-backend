@@ -35,16 +35,16 @@ export class CandidateInterview {
   @Prop()
   invitationToken: string;
 
-  @Prop({ type: TechnicalInterview, required: false })
+  @Prop({ type: TechnicalInterview, required: false, default: null })
   technicalInterview?: TechnicalInterview | null;
 
-  @Prop({ type: TechnicalAssessment, required: false })
+  @Prop({ type: TechnicalAssessment, required: false, default: null })
   technicalAssessment?: TechnicalAssessment | null;
 
-  @Prop({ required: false })
+  @Prop({ required: false, default: null })
   rating?: number | null;
 
-  @Prop({ required: false })
+  @Prop({ required: false, default: null })
   comment?: string | null;
 
   @Prop({ type: MongooseSchema.Types.Date })
