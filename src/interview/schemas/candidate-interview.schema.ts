@@ -35,11 +35,11 @@ export class CandidateInterview {
   @Prop()
   invitationToken: string;
 
-  @Prop({ type: TechnicalInterview, required: false, default: null })
-  technicalInterview?: TechnicalInterview | null;
+  @Prop({ type: TechnicalInterview, required: false, default: {} })
+  technicalInterview?: TechnicalInterview;
 
-  @Prop({ type: TechnicalAssessment, required: false, default: null })
-  technicalAssessment?: TechnicalAssessment | null;
+  @Prop({ type: TechnicalAssessment, required: false, default: {} })
+  technicalAssessment?: TechnicalAssessment;
 
   @Prop({ required: false, default: null })
   rating?: number | null;

@@ -2,14 +2,14 @@ import { Prop, Schema } from '@nestjs/mongoose';
 
 @Schema()
 export class TechnicalInterview {
-  @Prop({ type: Number })
-  totalScore: number;
+  @Prop({ type: Number, default: null })
+  totalScore: number | null;
 
-  @Prop({ type: Number })
-  technicalSkillsScore: number;
+  @Prop({ type: Number, default: null })
+  technicalSkillsScore: number | null;
 
-  @Prop({ type: Number })
-  softSkillsScore: number;
+  @Prop({ type: Number, default: null })
+  softSkillsScore: number | null;
 
   @Prop([
     {
@@ -38,8 +38,8 @@ export class TechnicalInterview {
 
 @Schema()
 export class TechnicalAssessment {
-  @Prop({ type: Number })
-  totalScore: number;
+  @Prop({ type: Number, default: null })
+  totalScore: number | null;
 
   @Prop([
     {

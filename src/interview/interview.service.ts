@@ -247,8 +247,14 @@ export class InterviewService {
           _id: '$candidate._id',
           status: 1,
           stage: 1,
-          technicalInterview: 1,
-          technicalAssessment: 1,
+          technicalInterview: {
+            totalScore: '$technicalInterview.totalScore',
+            technicalSkillsScore: '$technicalInterview.technicalSkillsScore',
+            softSkillsScore: '$technicalInterview.softSkillsScore',
+          },
+          technicalAssessment: {
+            totalScore: '$technicalAssessment.totalScore',
+          },
           rating: 1,
           comment: 1,
           finalScore: 1,
@@ -258,6 +264,49 @@ export class InterviewService {
             $concat: ['$candidate.firstName', ' ', '$candidate.lastName'],
           },
           email: '$candidate.email',
+          overallScore: {
+            $let: {
+              vars: {
+                interviewScore: {
+                  $ifNull: ['$technicalInterview.totalScore', null],
+                },
+                assessmentScore: {
+                  $ifNull: ['$technicalAssessment.totalScore', null],
+                },
+                hasInterviewScore: {
+                  $ne: ['$technicalInterview.totalScore', null],
+                },
+                hasAssessmentScore: {
+                  $ne: ['$technicalAssessment.totalScore', null],
+                },
+              },
+              in: {
+                $cond: {
+                  if: {
+                    $and: [
+                      { $eq: ['$$interviewScore', null] },
+                      { $eq: ['$$assessmentScore', null] },
+                    ],
+                  },
+                  then: null,
+                  else: {
+                    $cond: {
+                      if: {
+                        $and: ['$$hasInterviewScore', '$$hasAssessmentScore'],
+                      },
+                      then: { $avg: ['$$interviewScore', '$$assessmentScore'] },
+                      else: {
+                        $add: [
+                          { $ifNull: ['$$interviewScore', 0] },
+                          { $ifNull: ['$$assessmentScore', 0] },
+                        ],
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       },
       { $sort: { createdAt: -1 } },
