@@ -25,7 +25,16 @@ export class Interview {
   @Prop({ type: String, enum: WorkArrangements })
   workArrangements: WorkArrangements;
 
-  @Prop({ type: String, enum: SkillLevel, required: true })
+  @Prop({ type: Boolean, default: false, required: true })
+  includeTechnicalAssessment: boolean;
+
+  @Prop({
+    type: String,
+    enum: SkillLevel,
+    required: function (this: Interview) {
+      return this.includeTechnicalAssessment === true;
+    },
+  })
   skillLevel: SkillLevel;
 
   @Prop({

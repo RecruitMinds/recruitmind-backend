@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsEnum, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsEnum,
+  IsOptional,
+  IsBoolean,
+  ValidateIf,
+} from 'class-validator';
 import {
   InterviewStatus,
   SkillLevel,
@@ -28,9 +34,14 @@ export class CreateInterviewDto {
   @IsEnum(WorkArrangements)
   workArrangements: WorkArrangements;
 
-  @ApiProperty({ enum: SkillLevel })
+  @ApiProperty()
+  @IsBoolean()
+  includeTechnicalAssessment: boolean;
+
+  @ApiProperty({ enum: SkillLevel, required: false })
+  @ValidateIf((o) => o.includeTechnicalAssessment === true)
   @IsEnum(SkillLevel)
-  skillLevel: SkillLevel;
+  skillLevel?: SkillLevel;
 
   @ApiProperty({ enum: InterviewStatus, default: InterviewStatus.INACTIVE })
   @IsEnum(InterviewStatus)
