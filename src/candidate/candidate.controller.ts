@@ -1,4 +1,11 @@
-import { Controller, Get, UseGuards, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  UseGuards,
+  Query,
+  Delete,
+  Param,
+} from '@nestjs/common';
 import { User } from '@clerk/express';
 import { ApiOperation, ApiQuery } from '@nestjs/swagger';
 
@@ -22,5 +29,14 @@ export class CandidateController {
   ) {
     const recruiterId = recruiter.id;
     return this.candidateService.getAll(recruiterId, paginationDto, interview);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete a candidate' })
+  async delete(
+    @Param('id') id: string,
+    @Recruiter() recruiter: User,
+  ): Promise<void> {
+    await this.candidateService.delete(id, recruiter.id);
   }
 }

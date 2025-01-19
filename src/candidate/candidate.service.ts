@@ -1,15 +1,23 @@
-import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import {
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import { Connection, Model, Types } from 'mongoose';
 
 import { Candidate } from './schemas/candidate.schema';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { CandidateInterview } from 'src/interview/schemas/candidate-interview.schema';
 
 @Injectable()
 export class CandidateService {
   constructor(
     @InjectModel(Candidate.name)
     private readonly candidateModel: Model<Candidate>,
+    @InjectModel(CandidateInterview.name)
+    private readonly candidateInterviewModel: Model<CandidateInterview>,
+    @InjectConnection() private readonly connection: Connection,
   ) {}
 
   async getAll(
@@ -78,5 +86,43 @@ export class CandidateService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async delete(id: string, recruiterId: string): Promise<void> {
+    const session = await this.connection.startSession();
+
+    try {
+      await session.withTransaction(async () => {
+        // Find the candidate first to ensure it exists and belongs to the recruiter
+        const candidate = await this.candidateModel.findOne({
+          _id: new Types.ObjectId(id),
+          recruiter: recruiterId,
+        });
+
+        if (!candidate) {
+          throw new NotFoundException('Candidate not found');
+        }
+
+        // Delete all related candidate interviews
+        await this.candidateInterviewModel
+          .deleteMany({
+            candidateId: new Types.ObjectId(id),
+          })
+          .session(session);
+
+        // Delete the candidate
+        await this.candidateModel.findByIdAndDelete(id).session(session);
+      });
+    } catch (error) {
+      if (error.name === 'CastError') {
+        throw new NotFoundException('Invalid candidate ID');
+      }
+      if (!(error instanceof NotFoundException)) {
+        throw new InternalServerErrorException('Error deleting candidate');
+      }
+      throw error;
+    } finally {
+      session.endSession();
+    }
   }
 }
