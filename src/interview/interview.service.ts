@@ -435,37 +435,43 @@ export class InterviewService {
       throw new NotFoundException('Interview not found');
     }
 
-    let candidate = await this.candidateModel.findOne({
-      email: inviteDto.email,
-      recruiter: recruiterId,
-    });
-    const invitationToken = uuidv4();
+    const invitationPromises = inviteDto.candidates.map(
+      async (candidateData) => {
+        let candidate = await this.candidateModel.findOne({
+          email: candidateData.email,
+          recruiter: recruiterId,
+        });
+        const invitationToken = uuidv4();
 
-    if (!candidate) {
-      candidate = new this.candidateModel({
-        ...inviteDto,
-        recruiter: recruiterId,
-      });
-    }
+        if (!candidate) {
+          candidate = new this.candidateModel({
+            ...candidateData,
+            recruiter: recruiterId,
+          });
+        }
 
-    const candidateInterview = new this.candidateInterviewModel({
-      candidateId: candidate._id,
-      interviewId,
-      invitationToken,
-    });
+        const candidateInterview = new this.candidateInterviewModel({
+          candidateId: candidate._id,
+          interviewId,
+          invitationToken,
+        });
 
-    candidate.interviews.push(candidateInterview);
+        candidate.interviews.push(candidateInterview);
 
-    await candidate.save();
-    await candidateInterview.save();
+        await candidate.save();
+        await candidateInterview.save();
 
-    // TODO: Add Company info and Change URL
-    this.mailService.sendInterviewInvitation(candidate.email, {
-      name: `${candidate.firstName} ${candidate.lastName}`,
-      role: interview.role,
-      company: 'IFS',
-      invitationLink: `http://localhost:3001/interview?token=${invitationToken}`,
-    });
+        // TODO: Add Company info and Change URL
+        this.mailService.sendInterviewInvitation(candidate.email, {
+          name: `${candidate.firstName} ${candidate.lastName}`,
+          role: interview.role,
+          company: 'IFS',
+          invitationLink: `http://localhost:3001/interview?token=${invitationToken}`,
+        });
+      },
+    );
+
+    await Promise.all(invitationPromises);
   }
 
   async validateInvitationToken(token: string) {
