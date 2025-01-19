@@ -89,30 +89,28 @@ export class CandidateService {
   }
 
   async delete(id: string, recruiterId: string): Promise<void> {
-    const session = await this.connection.startSession();
-
     try {
-      await session.withTransaction(async () => {
-        // Find the candidate first to ensure it exists and belongs to the recruiter
-        const candidate = await this.candidateModel.findOne({
-          _id: new Types.ObjectId(id),
-          recruiter: recruiterId,
-        });
+      const candidateId = new Types.ObjectId(id);
 
-        if (!candidate) {
-          throw new NotFoundException('Candidate not found');
-        }
-
-        // Delete all related candidate interviews
-        await this.candidateInterviewModel
-          .deleteMany({
-            candidateId: new Types.ObjectId(id),
-          })
-          .session(session);
-
-        // Delete the candidate
-        await this.candidateModel.findByIdAndDelete(id).session(session);
+      // Find the candidate first to ensure it exists and belongs to the recruiter
+      const candidate = await this.candidateModel.findOne({
+        _id: candidateId,
+        recruiter: recruiterId,
       });
+
+      if (!candidate) {
+        throw new NotFoundException('Candidate not found');
+      }
+
+      // Delete all related candidate interviews using the interviews array
+      if (candidate.interviews?.length > 0) {
+        await this.candidateInterviewModel.deleteMany({
+          _id: { $in: candidate.interviews },
+        });
+      }
+
+      // Delete the candidate
+      await this.candidateModel.findByIdAndDelete(candidateId);
     } catch (error) {
       if (error.name === 'CastError') {
         throw new NotFoundException('Invalid candidate ID');
@@ -121,8 +119,6 @@ export class CandidateService {
         throw new InternalServerErrorException('Error deleting candidate');
       }
       throw error;
-    } finally {
-      session.endSession();
     }
   }
 }
