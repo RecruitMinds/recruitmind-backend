@@ -6,10 +6,12 @@ import {
   Delete,
   Param,
 } from '@nestjs/common';
+import { Types } from 'mongoose';
 import { User } from '@clerk/express';
-import { ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiQuery } from '@nestjs/swagger';
 
 import { CandidateService } from './candidate.service';
+import { MongoIdPipe } from 'src/common/pipes/mongo-id.pipe';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { ClerkAuthGuard } from 'src/common/guards/clerk-auth.guard';
 import { Recruiter } from 'src/common/decorators/recruiter.decorator';
@@ -28,13 +30,22 @@ export class CandidateController {
     @Recruiter() recruiter: User,
   ) {
     const recruiterId = recruiter.id;
-    return this.candidateService.getAll(recruiterId, paginationDto, interview);
+    const interviewId = interview
+      ? new MongoIdPipe().transform(interview)
+      : undefined;
+
+    return this.candidateService.getAll(
+      recruiterId,
+      paginationDto,
+      interviewId,
+    );
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a candidate' })
+  @ApiParam({ name: 'id', type: String })
   async delete(
-    @Param('id') id: string,
+    @Param('id', MongoIdPipe) id: Types.ObjectId,
     @Recruiter() recruiter: User,
   ): Promise<void> {
     await this.candidateService.delete(id, recruiter.id);

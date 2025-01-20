@@ -65,6 +65,7 @@ export class InterviewController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get interview detail' })
+  @ApiParam({ name: 'id', type: String })
   async getInterview(
     @Param('id', MongoIdPipe) id: Types.ObjectId,
     @Recruiter() recruiter: User,
@@ -75,6 +76,7 @@ export class InterviewController {
 
   @Get(':id/candidates')
   @ApiOperation({ summary: 'Get all candidates related interview' })
+  @ApiParam({ name: 'id', type: String })
   @ApiQuery({ name: 'stage', enum: HiringStage, required: false })
   @ApiQuery({ name: 'status', enum: CaInterviewStatus, required: false })
   async getInterviewCandidates(
@@ -96,6 +98,7 @@ export class InterviewController {
 
   @Get('candidates/:id/invitable')
   @ApiOperation({ summary: 'Get all invitable interviews' })
+  @ApiParam({ name: 'id', type: String })
   getAllInvitableInterviews(
     @Param('id', MongoIdPipe) candidateId: Types.ObjectId,
     @Recruiter() recruiter: User,
@@ -109,6 +112,7 @@ export class InterviewController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update interview details' })
+  @ApiParam({ name: 'id', type: String })
   async updateInterview(
     @Param('id', MongoIdPipe) id: Types.ObjectId,
     @Body() updateInterviewDto: UpdateInterviewDto,
@@ -118,6 +122,8 @@ export class InterviewController {
 
   @Patch(':id/candidates/:candidateId')
   @ApiOperation({ summary: 'Update candidate interview details' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiParam({ name: 'candidateId', type: String })
   async updateCandidateInterview(
     @Param('id', MongoIdPipe) interviewId: Types.ObjectId,
     @Param('candidateId', MongoIdPipe) candidateId: Types.ObjectId,
@@ -135,12 +141,14 @@ export class InterviewController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete an interview' })
+  @ApiParam({ name: 'id', type: String })
   async deleteInterview(@Param('id', MongoIdPipe) id: Types.ObjectId) {
     return this.interviewService.delete(id);
   }
 
   @Post(':id/invite')
   @ApiOperation({ summary: 'Invite a candidate to an interview' })
+  @ApiParam({ name: 'id', type: String })
   async inviteCandidate(
     @Param('id', MongoIdPipe) interviewId: Types.ObjectId,
     @Recruiter() recruiter: User,

@@ -3,8 +3,8 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { Connection, Model, Types } from 'mongoose';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, PipelineStage, Types } from 'mongoose';
 
 import { Candidate } from './schemas/candidate.schema';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
@@ -17,27 +17,17 @@ export class CandidateService {
     private readonly candidateModel: Model<Candidate>,
     @InjectModel(CandidateInterview.name)
     private readonly candidateInterviewModel: Model<CandidateInterview>,
-    @InjectConnection() private readonly connection: Connection,
   ) {}
 
   async getAll(
     recruiterId: string,
     paginationDto: PaginationDto,
-    interview?: string,
+    interview?: Types.ObjectId,
   ) {
     const { page, limit, search } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const matchStage: any = { recruiter: recruiterId };
-
-    if (search) {
-      matchStage.$or = [
-        { firstName: { $regex: search, $options: 'i' } },
-        { lastName: { $regex: search, $options: 'i' } },
-      ];
-    }
-
-    const pipeline: any[] = [
+    const basePipeline: PipelineStage[] = [
       {
         $lookup: {
           from: 'candidateinterviews',
@@ -49,33 +39,43 @@ export class CandidateService {
     ];
 
     if (interview) {
-      pipeline.push({
+      basePipeline.push({
         $match: {
-          'interviewDetails.interviewId': new Types.ObjectId(interview),
+          'interviewDetails.interviewId': interview,
         },
       });
     }
 
-    pipeline.push(
-      { $match: matchStage },
-      { $skip: skip },
-      { $limit: Number(limit) },
-      {
-        $project: {
-          _id: 1,
-          email: 1,
-          fullName: { $concat: ['$firstName', ' ', '$lastName'] },
-          interviews_count: { $size: '$interviews' },
-          createdAt: 1,
-          updatedAt: 1,
-        },
-      },
-    );
+    const matchStage: any = { recruiter: recruiterId };
+    if (search) {
+      matchStage.$or = [
+        { firstName: { $regex: search, $options: 'i' } },
+        { lastName: { $regex: search, $options: 'i' } },
+      ];
+    }
 
-    const [candidates, total] = await Promise.all([
-      this.candidateModel.aggregate(pipeline),
-      this.candidateModel.countDocuments(matchStage),
+    basePipeline.push({ $match: matchStage });
+
+    const [candidates, [countResult]] = await Promise.all([
+      this.candidateModel.aggregate([
+        ...basePipeline,
+        { $skip: skip },
+        { $limit: Number(limit) },
+        {
+          $project: {
+            _id: 1,
+            email: 1,
+            fullName: { $concat: ['$firstName', ' ', '$lastName'] },
+            interviews_count: { $size: '$interviews' },
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        },
+      ]),
+      this.candidateModel.aggregate([...basePipeline, { $count: 'total' }]),
     ]);
+
+    const total = countResult?.total || 0;
 
     return {
       data: candidates,
@@ -88,13 +88,11 @@ export class CandidateService {
     };
   }
 
-  async delete(id: string, recruiterId: string): Promise<void> {
+  async delete(id: Types.ObjectId, recruiterId: string): Promise<void> {
     try {
-      const candidateId = new Types.ObjectId(id);
-
       // Find the candidate first to ensure it exists and belongs to the recruiter
       const candidate = await this.candidateModel.findOne({
-        _id: candidateId,
+        _id: id,
         recruiter: recruiterId,
       });
 
@@ -110,7 +108,7 @@ export class CandidateService {
       }
 
       // Delete the candidate
-      await this.candidateModel.findByIdAndDelete(candidateId);
+      await this.candidateModel.findByIdAndDelete(id);
     } catch (error) {
       if (error.name === 'CastError') {
         throw new NotFoundException('Invalid candidate ID');
