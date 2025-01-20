@@ -7,6 +7,7 @@ import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { InviteCandidateDto } from './dto/invite-candidate.dto';
 import { UpdateInterviewDto } from './dto/update-interview.dto';
+import { UpdateCandidateInterviewDto } from './dto/update-candidate-interview.dto';
 
 import { Interview } from './schemas/interview.schema';
 import { CandidateInterview } from './schemas/candidate-interview.schema';
@@ -163,7 +164,7 @@ export class InterviewService {
       .exec();
   }
 
-  async getInterview(interviewId: string, recruiterId: string) {
+  async getInterview(interviewId: Types.ObjectId, recruiterId: string) {
     const interview = await this.interviewModel.findOne({
       _id: interviewId,
       recruiter: recruiterId,
@@ -177,7 +178,7 @@ export class InterviewService {
   }
 
   async getInterviewCandidates(
-    interviewId: string,
+    interviewId: Types.ObjectId,
     recruiterId: string,
     paginationDto: PaginationDto,
     stage?: HiringStage,
@@ -190,7 +191,7 @@ export class InterviewService {
     const pipeline: PipelineStage[] = [
       {
         $match: {
-          interviewId: new Types.ObjectId(interviewId),
+          interviewId: interviewId,
         },
       },
       {
@@ -255,6 +256,7 @@ export class InterviewService {
           technicalAssessment: {
             totalScore: '$technicalAssessment.totalScore',
           },
+          invitationToken: 1,
           rating: 1,
           comment: 1,
           finalScore: 1,
@@ -334,7 +336,10 @@ export class InterviewService {
     };
   }
 
-  async getAllInvitableInterviews(candidateId: string, recruiterId: string) {
+  async getAllInvitableInterviews(
+    candidateId: Types.ObjectId,
+    recruiterId: string,
+  ) {
     const pipeline = [
       // Match active interviews belonging to recruiter
       {
@@ -353,7 +358,7 @@ export class InterviewService {
               $match: {
                 $expr: {
                   $and: [
-                    { $eq: ['$candidateId', new Types.ObjectId(candidateId)] },
+                    { $eq: ['$candidateId', candidateId] },
                     { $eq: ['$interviewId', '$$interviewId'] },
                   ],
                 },
@@ -381,7 +386,10 @@ export class InterviewService {
     return await this.interviewModel.aggregate(pipeline);
   }
 
-  async update(interviewId: string, updateInterviewDto: UpdateInterviewDto) {
+  async update(
+    interviewId: Types.ObjectId,
+    updateInterviewDto: UpdateInterviewDto,
+  ) {
     const interview = await this.interviewModel.findOneAndUpdate(
       { _id: interviewId },
       { $set: updateInterviewDto },
@@ -395,7 +403,31 @@ export class InterviewService {
     return interview;
   }
 
-  async delete(interviewId: string) {
+  async updateCandidateInterview(
+    interviewId: Types.ObjectId,
+    candidateId: Types.ObjectId,
+    recruiterId: string,
+    updateDto: UpdateCandidateInterviewDto,
+  ): Promise<void> {
+    const candidateInterview = await this.candidateInterviewModel
+      .findOne({
+        interviewId,
+        candidateId,
+      })
+      .populate({
+        path: 'candidateId',
+        match: { recruiter: recruiterId },
+      });
+
+    if (!candidateInterview || !candidateInterview.candidateId) {
+      throw new NotFoundException('Candidate interview not found');
+    }
+
+    Object.assign(candidateInterview, updateDto);
+    await candidateInterview.save();
+  }
+
+  async delete(interviewId: Types.ObjectId) {
     // Get all candidate interviews before deletion for reference cleanup
     const candidateInterviews = await this.candidateInterviewModel
       .find({ interviewId })
@@ -426,7 +458,7 @@ export class InterviewService {
   }
 
   async inviteCandidate(
-    interviewId: string,
+    interviewId: Types.ObjectId,
     recruiterId: string,
     inviteDto: InviteCandidateDto,
   ) {

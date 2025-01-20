@@ -9,12 +9,15 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { Types } from 'mongoose';
 import { User } from '@clerk/express';
-import { ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiQuery } from '@nestjs/swagger';
 
 import { InterviewService } from './interview.service';
+import { MongoIdPipe } from 'src/common/pipes/mongo-id.pipe';
 import { ClerkAuthGuard } from 'src/common/guards/clerk-auth.guard';
 import { Recruiter } from 'src/common/decorators/recruiter.decorator';
+
 import { InterviewStatus } from './enums/interview.enum';
 import {
   HiringStage,
@@ -25,6 +28,7 @@ import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { InviteCandidateDto } from './dto/invite-candidate.dto';
 import { UpdateInterviewDto } from './dto/update-interview.dto';
+import { UpdateCandidateInterviewDto } from './dto/update-candidate-interview.dto';
 
 @Controller('interview')
 @UseGuards(ClerkAuthGuard)
@@ -61,7 +65,10 @@ export class InterviewController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get interview detail' })
-  async getInterview(@Param('id') id: string, @Recruiter() recruiter: User) {
+  async getInterview(
+    @Param('id', MongoIdPipe) id: Types.ObjectId,
+    @Recruiter() recruiter: User,
+  ) {
     const recruiterId = recruiter.id;
     return this.interviewService.getInterview(id, recruiterId);
   }
@@ -71,7 +78,7 @@ export class InterviewController {
   @ApiQuery({ name: 'stage', enum: HiringStage, required: false })
   @ApiQuery({ name: 'status', enum: CaInterviewStatus, required: false })
   async getInterviewCandidates(
-    @Param('id') interviewId: string,
+    @Param('id', MongoIdPipe) interviewId: Types.ObjectId,
     @Recruiter() recruiter: User,
     @Query() paginationDto: PaginationDto,
     @Query('stage') stage?: HiringStage,
@@ -90,7 +97,7 @@ export class InterviewController {
   @Get('candidates/:id/invitable')
   @ApiOperation({ summary: 'Get all invitable interviews' })
   getAllInvitableInterviews(
-    @Param('id') candidateId: string,
+    @Param('id', MongoIdPipe) candidateId: Types.ObjectId,
     @Recruiter() recruiter: User,
   ) {
     const recruiterId = recruiter.id;
@@ -103,22 +110,39 @@ export class InterviewController {
   @Patch(':id')
   @ApiOperation({ summary: 'Update interview details' })
   async updateInterview(
-    @Param('id') id: string,
+    @Param('id', MongoIdPipe) id: Types.ObjectId,
     @Body() updateInterviewDto: UpdateInterviewDto,
   ) {
     return this.interviewService.update(id, updateInterviewDto);
   }
 
+  @Patch(':id/candidates/:candidateId')
+  @ApiOperation({ summary: 'Update candidate interview details' })
+  async updateCandidateInterview(
+    @Param('id', MongoIdPipe) interviewId: Types.ObjectId,
+    @Param('candidateId', MongoIdPipe) candidateId: Types.ObjectId,
+    @Body() updateDto: UpdateCandidateInterviewDto,
+    @Recruiter() recruiter: User,
+  ) {
+    const recruiterId = recruiter.id;
+    return this.interviewService.updateCandidateInterview(
+      interviewId,
+      candidateId,
+      recruiterId,
+      updateDto,
+    );
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Delete an interview' })
-  async deleteInterview(@Param('id') id: string) {
+  async deleteInterview(@Param('id', MongoIdPipe) id: Types.ObjectId) {
     return this.interviewService.delete(id);
   }
 
   @Post(':id/invite')
   @ApiOperation({ summary: 'Invite a candidate to an interview' })
   async inviteCandidate(
-    @Param('id') interviewId: string,
+    @Param('id', MongoIdPipe) interviewId: Types.ObjectId,
     @Recruiter() recruiter: User,
     @Body() inviteDto: InviteCandidateDto,
   ) {
