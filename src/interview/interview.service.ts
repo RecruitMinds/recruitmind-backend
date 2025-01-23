@@ -386,6 +386,259 @@ export class InterviewService {
     return await this.interviewModel.aggregate(pipeline);
   }
 
+  async getCandidateInterviewDetails(
+    interviewId: Types.ObjectId,
+    candidateId: Types.ObjectId,
+    recruiterId: string,
+  ) {
+    const pipeline = [
+      {
+        $match: {
+          interviewId,
+          candidateId,
+        },
+      },
+      {
+        $lookup: {
+          from: 'candidates',
+          localField: 'candidateId',
+          foreignField: '_id',
+          as: 'candidate',
+        },
+      },
+      { $unwind: '$candidate' },
+      {
+        $match: {
+          'candidate.recruiter': recruiterId,
+        },
+      },
+      {
+        $lookup: {
+          from: 'interviews',
+          localField: 'interviewId',
+          foreignField: '_id',
+          as: 'interview',
+        },
+      },
+      { $unwind: '$interview' },
+      {
+        $lookup: {
+          from: 'candidateinterviews',
+          let: { interviewId: '$interviewId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$interviewId', '$$interviewId'] },
+              },
+            },
+            {
+              $project: {
+                totalScore: {
+                  $let: {
+                    vars: {
+                      interviewScore: {
+                        $ifNull: ['$technicalInterview.totalScore', null],
+                      },
+                      assessmentScore: {
+                        $ifNull: ['$technicalAssessment.totalScore', null],
+                      },
+                      hasInterviewScore: {
+                        $ne: ['$technicalInterview.totalScore', null],
+                      },
+                      hasAssessmentScore: {
+                        $ne: ['$technicalAssessment.totalScore', null],
+                      },
+                    },
+                    in: {
+                      $cond: {
+                        if: {
+                          $and: [
+                            { $eq: ['$$interviewScore', null] },
+                            { $eq: ['$$assessmentScore', null] },
+                          ],
+                        },
+                        then: null,
+                        else: {
+                          $cond: {
+                            if: {
+                              $and: [
+                                '$$hasInterviewScore',
+                                '$$hasAssessmentScore',
+                              ],
+                            },
+                            then: {
+                              $avg: ['$$interviewScore', '$$assessmentScore'],
+                            },
+                            else: {
+                              $add: [
+                                { $ifNull: ['$$interviewScore', 0] },
+                                { $ifNull: ['$$assessmentScore', 0] },
+                              ],
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+                status: 1,
+              },
+            },
+          ],
+          as: 'allCandidateInterviews',
+        },
+      },
+      {
+        $addFields: {
+          bestScore: {
+            $max: {
+              $filter: {
+                input: '$allCandidateInterviews',
+                as: 'ci',
+                cond: {
+                  $and: [
+                    { $eq: ['$$ci.status', 'completed'] },
+                    { $ne: ['$$ci.totalScore', null] },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          name: '$interview.name',
+          status: 1,
+          stage: 1,
+          technicalInterview: {
+            totalScore: '$technicalInterview.totalScore',
+            technicalSkillsScore: '$technicalInterview.technicalSkillsScore',
+            softSkillsScore: '$technicalInterview.softSkillsScore',
+            questions: {
+              $map: {
+                input: { $ifNull: ['$technicalInterview.questions', []] },
+                as: 'q',
+                in: {
+                  question: '$$q.question',
+                  answer: '$$q.answer',
+                  evaluation: '$$q.evaluation',
+                },
+              },
+            },
+            transcript: {
+              $map: {
+                input: { $ifNull: ['$technicalInterview.transcript', []] },
+                as: 't',
+                in: {
+                  role: '$$t.role',
+                  content: '$$t.content',
+                },
+              },
+            },
+          },
+          technicalAssessment: {
+            totalScore: '$technicalAssessment.totalScore',
+            questions: {
+              $map: {
+                input: { $ifNull: ['$technicalAssessment.questions', []] },
+                as: 'q',
+                in: {
+                  question: {
+                    title: '$$q.question.title',
+                    description: '$$q.question.description',
+                    examples: {
+                      $map: {
+                        input: { $ifNull: ['$$q.question.examples', []] },
+                        as: 'e',
+                        in: {
+                          input: '$$e.input',
+                          output: '$$e.output',
+                          explanations: '$$e.explanations',
+                        },
+                      },
+                    },
+                    constraints: '$$q.question.constraints',
+                  },
+                  solution: '$$q.solution',
+                  evaluation: '$$q.evaluation',
+                },
+              },
+            },
+            transcript: {
+              $map: {
+                input: { $ifNull: ['$technicalAssessment.transcript', []] },
+                as: 't',
+                in: {
+                  role: '$$t.role',
+                  content: '$$t.content',
+                },
+              },
+            },
+          },
+          rating: 1,
+          comment: 1,
+          bestScore: { $max: '$allCandidateInterviews.totalScore' },
+          includeTechnicalAssessment: '$interview.includeTechnicalAssessment',
+          overallScore: {
+            $let: {
+              vars: {
+                interviewScore: {
+                  $ifNull: ['$technicalInterview.totalScore', null],
+                },
+                assessmentScore: {
+                  $ifNull: ['$technicalAssessment.totalScore', null],
+                },
+                hasInterviewScore: {
+                  $ne: ['$technicalInterview.totalScore', null],
+                },
+                hasAssessmentScore: {
+                  $ne: ['$technicalAssessment.totalScore', null],
+                },
+              },
+              in: {
+                $cond: {
+                  if: {
+                    $and: [
+                      { $eq: ['$$interviewScore', null] },
+                      { $eq: ['$$assessmentScore', null] },
+                    ],
+                  },
+                  then: null,
+                  else: {
+                    $cond: {
+                      if: {
+                        $and: ['$$hasInterviewScore', '$$hasAssessmentScore'],
+                      },
+                      then: { $avg: ['$$interviewScore', '$$assessmentScore'] },
+                      else: {
+                        $add: [
+                          { $ifNull: ['$$interviewScore', 0] },
+                          { $ifNull: ['$$assessmentScore', 0] },
+                        ],
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      },
+    ];
+
+    const [result] = await this.candidateInterviewModel.aggregate(pipeline);
+
+    if (!result) {
+      throw new NotFoundException('Candidate interview not found');
+    }
+
+    return result;
+  }
+
   async update(
     interviewId: Types.ObjectId,
     updateInterviewDto: UpdateInterviewDto,

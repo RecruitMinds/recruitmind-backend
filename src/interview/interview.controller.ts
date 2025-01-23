@@ -111,6 +111,23 @@ export class InterviewController {
     );
   }
 
+  @Get(':id/candidates/:candidateId/details')
+  @ApiOperation({ summary: 'Get candidate specific interview details' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiParam({ name: 'candidateId', type: String })
+  async getCandidateInterviewDetails(
+    @Param('id', MongoIdPipe) interviewId: Types.ObjectId,
+    @Param('candidateId', MongoIdPipe) candidateId: Types.ObjectId,
+    @Recruiter() recruiter: User,
+  ) {
+    const recruiterId = recruiter.id;
+    return this.interviewService.getCandidateInterviewDetails(
+      interviewId,
+      candidateId,
+      recruiterId,
+    );
+  }
+
   @Post(':id/invite-existing')
   @ApiOperation({ summary: 'Invite an existing candidate to a new interview' })
   @ApiParam({ name: 'id', type: String })
