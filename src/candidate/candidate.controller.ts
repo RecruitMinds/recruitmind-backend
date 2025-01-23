@@ -41,6 +41,16 @@ export class CandidateController {
     );
   }
 
+  @Get(':id')
+  @ApiOperation({ summary: 'Get specific candidate information' })
+  @ApiParam({ name: 'id', type: String })
+  async getCandidate(
+    @Param('id', MongoIdPipe) id: Types.ObjectId,
+    @Recruiter() recruiter: User,
+  ) {
+    return this.candidateService.getCandidateById(id, recruiter.id);
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a candidate' })
   @ApiParam({ name: 'id', type: String })

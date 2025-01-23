@@ -88,6 +88,26 @@ export class CandidateService {
     };
   }
 
+  async getCandidateById(id: Types.ObjectId, recruiterId: string) {
+    const candidate = await this.candidateModel.findOne({
+      _id: id,
+      recruiter: recruiterId,
+    });
+
+    if (!candidate) {
+      throw new NotFoundException('Candidate not found');
+    }
+
+    return {
+      _id: candidate._id,
+      email: candidate.email,
+      fullName: candidate.fullName,
+      interviews_count: candidate.interviews?.length || 0,
+      createdAt: candidate.createdAt,
+      updatedAt: candidate.updatedAt,
+    };
+  }
+
   async delete(id: Types.ObjectId, recruiterId: string): Promise<void> {
     try {
       // Find the candidate first to ensure it exists and belongs to the recruiter
