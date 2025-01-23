@@ -506,6 +506,51 @@ export class InterviewService {
     await Promise.all(invitationPromises);
   }
 
+  async inviteExistingCandidate(
+    interviewId: Types.ObjectId,
+    recruiterId: string,
+    candidateId: Types.ObjectId,
+  ) {
+    const interview = await this.interviewModel.findOne({
+      _id: interviewId,
+      recruiter: recruiterId,
+    });
+
+    if (!interview) {
+      throw new NotFoundException('Interview not found');
+    }
+
+    const candidate = await this.candidateModel.findOne({
+      _id: candidateId,
+      recruiter: recruiterId,
+    });
+
+    if (!candidate) {
+      throw new NotFoundException('Candidate not found');
+    }
+
+    const invitationToken = uuidv4();
+
+    const candidateInterview = new this.candidateInterviewModel({
+      candidateId: candidate._id,
+      interviewId,
+      invitationToken,
+    });
+
+    candidate.interviews.push(candidateInterview);
+
+    await candidate.save();
+    await candidateInterview.save();
+
+    // TODO: Add Company info and Change URL
+    this.mailService.sendInterviewInvitation(candidate.email, {
+      name: `${candidate.firstName} ${candidate.lastName}`,
+      role: interview.role,
+      company: 'IFS',
+      invitationLink: `http://localhost:3001/interview?token=${invitationToken}`,
+    });
+  }
+
   async validateInvitationToken(token: string) {
     const candidateInterview = await this.candidateInterviewModel
       .findOne({

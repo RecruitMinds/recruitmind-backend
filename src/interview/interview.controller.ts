@@ -24,6 +24,7 @@ import {
   InterviewStatus as CaInterviewStatus,
 } from './enums/candidateInterview.enum';
 
+import { InviteExistingDto } from './dto/invite-existing.dto';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { InviteCandidateDto } from './dto/invite-candidate.dto';
@@ -107,6 +108,22 @@ export class InterviewController {
     return this.interviewService.getAllInvitableInterviews(
       candidateId,
       recruiterId,
+    );
+  }
+
+  @Post(':id/invite-existing')
+  @ApiOperation({ summary: 'Invite an existing candidate to a new interview' })
+  @ApiParam({ name: 'id', type: String })
+  async inviteExistingCandidate(
+    @Param('id', MongoIdPipe) interviewId: Types.ObjectId,
+    @Recruiter() recruiter: User,
+    @Body() inviteDto: InviteExistingDto,
+  ) {
+    const recruiterId = recruiter.id;
+    return this.interviewService.inviteExistingCandidate(
+      interviewId,
+      recruiterId,
+      inviteDto.candidateId,
     );
   }
 
