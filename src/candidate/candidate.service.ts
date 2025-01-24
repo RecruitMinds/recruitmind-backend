@@ -89,23 +89,39 @@ export class CandidateService {
   }
 
   async getCandidateById(id: Types.ObjectId, recruiterId: string) {
-    const candidate = await this.candidateModel.findOne({
-      _id: id,
-      recruiter: recruiterId,
-    });
+    const [candidate] = await this.candidateModel.aggregate([
+      {
+        $match: {
+          _id: id,
+          recruiter: recruiterId,
+        },
+      },
+      {
+        $lookup: {
+          from: 'candidateinterviews',
+          localField: 'interviews',
+          foreignField: '_id',
+          as: 'interviewDetails',
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          email: 1,
+          fullName: { $concat: ['$firstName', ' ', '$lastName'] },
+          interviews_count: { $size: '$interviews' },
+          interviews: '$interviewDetails.interviewId',
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      },
+    ]);
 
     if (!candidate) {
       throw new NotFoundException('Candidate not found');
     }
 
-    return {
-      _id: candidate._id,
-      email: candidate.email,
-      fullName: candidate.fullName,
-      interviews_count: candidate.interviews?.length || 0,
-      createdAt: candidate.createdAt,
-      updatedAt: candidate.updatedAt,
-    };
+    return candidate;
   }
 
   async delete(id: Types.ObjectId, recruiterId: string): Promise<void> {
