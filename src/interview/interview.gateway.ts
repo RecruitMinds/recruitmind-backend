@@ -7,16 +7,32 @@ import {
 } from '@nestjs/websockets';
 import { Socket, Server } from 'socket.io';
 import { UnauthorizedException } from '@nestjs/common';
+import { Types, Document } from 'mongoose';
 
 import { InterviewService } from './interview.service';
 import { AiService } from 'src/ai/ai.service';
 import { InterviewStatus } from './enums/candidateInterview.enum';
+import { Interview } from './schemas/interview.schema';
+import { Candidate } from 'src/candidate/schemas/candidate.schema';
+import { CandidateInterview } from './schemas/candidate-interview.schema';
 
 interface InterviewSession {
-  interviewId: string;
-  candidateId: string;
-  currentQuestionIndex: number;
-  followUpCount: number;
+  interviewId: Types.ObjectId;
+  candidateId: Types.ObjectId;
+  isAssessment: boolean;
+  initialStage: 'Interview' | 'Assessment';
+}
+
+type MongoDocument<T> = Document<unknown, any, T> & T & { _id: Types.ObjectId };
+
+interface PopulatedCandidateInterview
+  extends Omit<
+    MongoDocument<CandidateInterview>,
+    'candidateId' | 'interviewId'
+  > {
+  candidateId: MongoDocument<Candidate>;
+  interviewId: MongoDocument<Interview>;
+  status: InterviewStatus;
 }
 
 @WebSocketGateway({ cors: { origin: '*' }, namespace: 'interview' })
@@ -30,77 +46,79 @@ export class InterviewGateway {
     private readonly aiService: AiService,
   ) {}
 
-  @SubscribeMessage('startInterview')
+  @SubscribeMessage('start-interview')
   async handleStartInterview(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { invitationToken: string },
   ) {
     try {
-      // Validate the invitation token and get interview details
+      const result = await this.interviewService.validateInvitationToken(
+        payload.invitationToken,
+      );
+
       const candidateInterview =
-        await this.interviewService.validateInvitationToken(
-          payload.invitationToken,
-        );
+        result as unknown as PopulatedCandidateInterview;
 
       if (candidateInterview.status === InterviewStatus.COMPLETED) {
         throw new UnauthorizedException('Interview already completed');
       }
 
-      // Initialize the interview session
       const session: InterviewSession = {
-        interviewId: candidateInterview.interviewId,
-        candidateId: candidateInterview.candidateId,
-        currentQuestionIndex: 0,
-        followUpCount: 0,
+        interviewId: candidateInterview.interviewId._id,
+        candidateId: candidateInterview.candidateId._id,
+        isAssessment: candidateInterview.interviewId.includeTechnicalAssessment,
+        initialStage: 'Interview',
       };
 
       this.activeSessions.set(client.id, session);
 
-      // Update the interview status
       await this.interviewService.updateInterviewStatus(
-        candidateInterview.interviewId,
-        candidateInterview.candidateId,
+        session.interviewId.toString(),
+        session.candidateId.toString(),
         'STARTED',
       );
 
-      // Generate the first question
-      const question = await this.aiService.generateQuestion(
-        'BEGINNER',
-        client.id,
-        0,
-      );
-
-      client.emit('question', { question, questionIndex: 0 });
+      const message = await this.aiService.startTechnicalInterview(client.id);
+      client.emit('interview-message', { message });
     } catch (error) {
       client.emit('error', { message: error.message });
     }
   }
 
-  private async moveToNextQuestion(client: Socket, session: InterviewSession) {
-    session.currentQuestionIndex++;
-    session.followUpCount = 0;
+  @SubscribeMessage('interview-response')
+  async handleInterviewResponse(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { message: string },
+  ) {
+    try {
+      const session = this.activeSessions.get(client.id);
 
-    if (session.currentQuestionIndex < 3) {
-      const nextQuestion = await this.aiService.generateQuestion(
-        null,
-        client.id,
-        session.currentQuestionIndex,
-      );
+      if (!session) {
+        throw new UnauthorizedException('Invalid session');
+      }
 
-      this.activeSessions.set(client.id, session);
+      const { message, endInterview } =
+        await this.aiService.handleInteviewResponse(client.id, payload.message);
 
-      client.emit('question', {
-        question: nextQuestion,
-        questionIndex: session.currentQuestionIndex,
-      });
-    } else {
-      // TODO: update complete interview status
-      this.activeSessions.delete(client.id);
-      client.emit('interviewCompleted');
+      if (endInterview) {
+        const results = await this.aiService.evaluateInterview(client.id);
+
+        if (session.isAssessment) {
+          client.emit('start-assessment');
+        } else {
+          client.emit('interview-end');
+        }
+
+        // TODO: Update Technical interview Results
+      }
+
+      client.emit('interview-message', { message });
+    } catch (error) {
+      client.emit('error', { message: error.message });
     }
   }
 
-  @SubscribeMessage('submitSolution')
+  @SubscribeMessage('submit-solution')
   async handleSolution(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { solution: string },
@@ -110,48 +128,6 @@ export class InterviewGateway {
 
       if (!session) {
         throw new UnauthorizedException('Invalid session');
-      }
-
-      const followUpQuestion = await this.aiService.generateFollowUpQuestion(
-        payload.solution,
-        client.id,
-      );
-
-      if (followUpQuestion) {
-        session.followUpCount++;
-        this.activeSessions.set(client.id, session);
-        client.emit('followUpQuestion', followUpQuestion);
-      } else {
-        await this.moveToNextQuestion(client, session);
-      }
-    } catch (error) {
-      client.emit('error', { message: error.message });
-    }
-  }
-
-  @SubscribeMessage('answerFollowUp')
-  async handleFollowUpAnswer(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { answer: string },
-  ) {
-    try {
-      const session = this.activeSessions.get(client.id);
-      if (!session) {
-        throw new UnauthorizedException('Invalid session');
-      }
-
-      const nextFollowUp = await this.aiService.processFollowUpAnswer(
-        payload.answer,
-        client.id,
-      );
-
-      if (nextFollowUp && session.followUpCount < 3) {
-        // Limit follow-up questions to 3
-        session.followUpCount++;
-        this.activeSessions.set(client.id, session);
-        client.emit('followUpQuestion', nextFollowUp);
-      } else {
-        await this.moveToNextQuestion(client, session);
       }
     } catch (error) {
       client.emit('error', { message: error.message });

@@ -2,9 +2,9 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { InterviewModule } from './interview/interview.module';
-import { AiService } from './ai/ai.service';
 import { CandidateModule } from './candidate/candidate.module';
 import { MailModule } from './mail/mail.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -19,7 +19,7 @@ import { MailModule } from './mail/mail.module';
     InterviewModule,
     CandidateModule,
     MailModule,
+    AiModule,
   ],
-  providers: [AiService],
 })
 export class AppModule {}
