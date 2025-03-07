@@ -540,31 +540,32 @@ export class InterviewService {
           },
           technicalAssessment: {
             totalScore: '$technicalAssessment.totalScore',
-            questions: {
-              $map: {
-                input: { $ifNull: ['$technicalAssessment.questions', []] },
-                as: 'q',
-                in: {
-                  question: {
-                    title: '$$q.question.title',
-                    description: '$$q.question.description',
-                    examples: {
-                      $map: {
-                        input: { $ifNull: ['$$q.question.examples', []] },
-                        as: 'e',
-                        in: {
-                          input: '$$e.input',
-                          output: '$$e.output',
-                          explanations: '$$e.explanations',
-                        },
-                      },
+            question: {
+              question: {
+                title: '$technicalAssessment.question.question.title',
+                description:
+                  '$technicalAssessment.question.question.description',
+                examples: {
+                  $map: {
+                    input: {
+                      $ifNull: [
+                        '$technicalAssessment.question.question.examples',
+                        [],
+                      ],
                     },
-                    constraints: '$$q.question.constraints',
+                    as: 'e',
+                    in: {
+                      input: '$$e.input',
+                      output: '$$e.output',
+                      explanations: '$$e.explanations',
+                    },
                   },
-                  solution: '$$q.solution',
-                  evaluation: '$$q.evaluation',
                 },
+                constraints:
+                  '$technicalAssessment.question.question.constraints',
               },
+              solution: '$technicalAssessment.question.solution',
+              evaluation: '$technicalAssessment.question.evaluation',
             },
             transcript: {
               $map: {

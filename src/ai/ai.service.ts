@@ -2,18 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { Client } from '@langchain/langgraph-sdk';
 
 import { SkillLevel } from 'src/interview/enums/interview.enum';
-import { TechnicalInterview } from 'src/interview/schemas/interview-sections.schema';
-
-type InterviewMessage = {
-  content: string;
-  type: 'human' | 'ai' | 'tool';
-  name: 'generate_assessment' | null;
-};
-
-type InterviewResponse = {
-  messages: InterviewMessage[];
-  evaluation: Omit<TechnicalInterview, 'transcript'>;
-};
+import {
+  InterviewResponse,
+  AssessmentResponse,
+  InterviewMessage,
+} from './ai.types';
+import {
+  TechnicalAssessment,
+  TechnicalInterview,
+} from 'src/interview/schemas/interview-sections.schema';
 
 @Injectable()
 export class AiService {
@@ -21,6 +18,32 @@ export class AiService {
 
   constructor() {
     this.client = new Client();
+  }
+
+  private extractTranscript(
+    messages: InterviewMessage[],
+  ): Array<{ role: string; content: string }> {
+    return messages
+      .slice(1)
+      .filter((m) => {
+        // Skip tool messages
+        if (m.type === 'tool') return false;
+
+        // Skip messages with tool calls
+        if (m.tool_calls && m.tool_calls.length > 0) return false;
+
+        // Skip empty AI messages
+        if (m.type === 'ai' && !m.content) return false;
+
+        return true;
+      })
+      .map((m) => ({
+        role: m.type === 'ai' ? 'Interviewer' : 'Candidate',
+        content: m.content
+          .replace('end_of_the_interview', '')
+          .replace('CANDIDATE SOLUTION:', '')
+          .trim(),
+      }));
   }
 
   // Interview
@@ -82,7 +105,7 @@ export class AiService {
 
     return {
       message: endInterview
-        ? lastMessage.replace('end_of_the_interview', '')
+        ? lastMessage.replace('end_of_the_interview', '').trim()
         : lastMessage,
       endInterview,
     };
@@ -94,13 +117,9 @@ export class AiService {
     });
 
     const { messages, evaluation } = response as unknown as InterviewResponse;
+    const transcript = this.extractTranscript(messages);
 
-    const transcript = messages.slice(1).map((m) => ({
-      role: m.type === 'ai' ? 'Interviewer' : 'Candidate',
-      content: m.content,
-    }));
-
-    return { ...evaluation, transcript };
+    return { ...evaluation, transcript } as TechnicalInterview;
   }
 
   // Assessment
@@ -123,7 +142,7 @@ export class AiService {
       },
     });
 
-    const result = response as unknown as InterviewResponse;
+    const result = response as unknown as AssessmentResponse;
     const lastMessage = result.messages[result.messages.length - 1].content;
 
     return lastMessage;
@@ -134,23 +153,32 @@ export class AiService {
     candidateName,
     difficulty,
     message,
+    isSubmitSolution = false,
+    solution,
   }: {
     threadId: string;
     candidateName: string;
     difficulty: SkillLevel;
     message: string;
+    isSubmitSolution: boolean;
+    solution?: string;
   }) {
-    const messages = [{ role: 'human', content: message }];
+    const messageContent = isSubmitSolution
+      ? `CANDIDATE SOLUTION:\n ${solution}\n`
+      : message;
+
+    const messages = [{ role: 'human', content: messageContent }];
 
     const response = await this.client.runs.wait(threadId, 'assessment_agent', {
       input: {
         messages,
         difficulty,
         candidate: candidateName,
+        ...(isSubmitSolution && { solution }),
       },
     });
 
-    const result = response as unknown as InterviewResponse;
+    const result = response as unknown as AssessmentResponse;
     const lastMessage = result.messages[result.messages.length - 1];
     const secondLastMessage =
       result.messages.length > 2 && result.messages[result.messages.length - 2];
@@ -169,12 +197,31 @@ export class AiService {
 
     return {
       message: endAssessment
-        ? lastMessage.content.replace('end_of_the_interview', '')
+        ? lastMessage.content.replace('end_of_the_interview', '').trim()
         : lastMessage.content,
       assessment,
       endAssessment,
     };
   }
 
-  async evaluateAssessment(sessionId: string) {}
+  async evaluateAssessment({ threadId }: { threadId: string }) {
+    const response = await this.client.runs.wait(threadId, 'assessment_agent', {
+      input: { route: 'evaluate' },
+    });
+
+    const { messages, coding_assessment, solution, evaluation } =
+      response as unknown as AssessmentResponse;
+
+    const transcript = this.extractTranscript(messages);
+
+    return {
+      totalScore: evaluation.totalScore,
+      question: {
+        question: coding_assessment,
+        solution,
+        evaluation: evaluation.evaluation,
+      },
+      transcript,
+    } as TechnicalAssessment;
+  }
 }

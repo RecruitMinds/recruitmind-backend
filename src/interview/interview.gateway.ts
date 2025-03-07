@@ -198,20 +198,27 @@ export class InterviewGateway {
           difficulty: session.difficulty,
           candidateName: session.candidateName,
           message: payload.message,
+          isSubmitSolution: false,
         });
-
-      if (endAssessment) {
-        const results = await this.aiService.evaluateAssessment(client.id);
-
-        // TODO: Update Technical Assessment Results
-
-        client.emit('interview-end');
-      }
 
       if (assessment) {
         client.emit('assessment', { assessment });
       } else {
         client.emit('assessment-message', { message });
+      }
+
+      if (endAssessment) {
+        const results = await this.aiService.evaluateAssessment({
+          threadId: session.assessmentThreadId,
+        });
+
+        await this.interviewService.saveAssessmentResults(
+          session.interviewId,
+          session.candidateId,
+          results,
+        );
+
+        client.emit('interview-end');
       }
     } catch (error) {
       client.emit('error', { message: error.message });
@@ -229,6 +236,17 @@ export class InterviewGateway {
       if (!session) {
         throw new UnauthorizedException('Invalid session');
       }
+
+      const { message } = await this.aiService.handleAssessmentResponse({
+        threadId: session.assessmentThreadId,
+        difficulty: session.difficulty,
+        candidateName: session.candidateName,
+        message: '',
+        isSubmitSolution: true,
+        solution: payload.solution,
+      });
+
+      client.emit('assessment-message', { message });
     } catch (error) {
       client.emit('error', { message: error.message });
     }

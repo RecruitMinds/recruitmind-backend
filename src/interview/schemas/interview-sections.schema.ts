@@ -41,28 +41,32 @@ export class TechnicalAssessment {
   @Prop({ type: Number, default: null })
   totalScore: number | null;
 
-  @Prop([
-    {
-      question: {
-        title: String,
-        description: String,
-        examples: [{ input: String, output: String, explanations: String }],
-        constraints: [String],
-      },
-      solution: String,
-      evaluation: String,
+  @Prop({
+    question: {
+      title: String,
+      description: String,
+      examples: [
+        {
+          input: String,
+          output: String,
+          explanations: { type: String, required: false },
+        },
+      ],
+      constraints: { type: [String], required: false },
     },
-  ])
-  questions: Array<{
+    solution: String,
+    evaluation: String,
+  })
+  question: {
     question: {
       title: string;
       description: string;
-      examples: { input: string; output: string; explanations: string }[];
-      constraints: string[];
+      examples: { input: string; output: string; explanations?: string }[];
+      constraints?: string[];
     };
     solution: string;
     evaluation: string;
-  }>;
+  };
 
   @Prop([
     {
