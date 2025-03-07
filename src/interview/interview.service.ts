@@ -541,31 +541,37 @@ export class InterviewService {
           technicalAssessment: {
             totalScore: '$technicalAssessment.totalScore',
             question: {
-              question: {
-                title: '$technicalAssessment.question.question.title',
-                description:
-                  '$technicalAssessment.question.question.description',
-                examples: {
-                  $map: {
-                    input: {
-                      $ifNull: [
-                        '$technicalAssessment.question.question.examples',
-                        [],
-                      ],
+              $cond: {
+                if: { $eq: ['$technicalAssessment.question', null] },
+                then: null,
+                else: {
+                  question: {
+                    title: '$technicalAssessment.question.question.title',
+                    description:
+                      '$technicalAssessment.question.question.description',
+                    examples: {
+                      $map: {
+                        input: {
+                          $ifNull: [
+                            '$technicalAssessment.question.question.examples',
+                            [],
+                          ],
+                        },
+                        as: 'e',
+                        in: {
+                          input: '$$e.input',
+                          output: '$$e.output',
+                          explanations: '$$e.explanations',
+                        },
+                      },
                     },
-                    as: 'e',
-                    in: {
-                      input: '$$e.input',
-                      output: '$$e.output',
-                      explanations: '$$e.explanations',
-                    },
+                    constraints:
+                      '$technicalAssessment.question.question.constraints',
                   },
+                  solution: '$technicalAssessment.question.solution',
+                  evaluation: '$technicalAssessment.question.evaluation',
                 },
-                constraints:
-                  '$technicalAssessment.question.question.constraints',
               },
-              solution: '$technicalAssessment.question.solution',
-              evaluation: '$technicalAssessment.question.evaluation',
             },
             transcript: {
               $map: {
