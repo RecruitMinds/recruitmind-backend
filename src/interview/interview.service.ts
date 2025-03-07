@@ -834,14 +834,27 @@ export class InterviewService {
   }
 
   async saveInterviewResults(
-    interviewId: string,
-    candidateId: string,
+    interviewId: Types.ObjectId,
+    candidateId: Types.ObjectId,
     results: any,
   ) {
-    this.candidateInterviewModel
+    return await this.candidateInterviewModel
       .updateOne(
         { interviewId, candidateId },
-        { $set: { results, status: 'COMPLETED' } },
+        { $set: { technicalInterview: results, status: 'COMPLETED' } },
+      )
+      .exec();
+  }
+
+  async saveAssessmentResults(
+    interviewId: Types.ObjectId,
+    candidateId: Types.ObjectId,
+    results: any,
+  ) {
+    return await this.candidateInterviewModel
+      .updateOne(
+        { interviewId, candidateId },
+        { $set: { technicalAssessment: results, status: 'COMPLETED' } },
       )
       .exec();
   }

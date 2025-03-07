@@ -25,6 +25,7 @@ interface InterviewSession {
   assessmentThreadId?: string;
   position: string;
   candidateName: string;
+  companyName: string;
   difficulty: SkillLevel;
   isAssessment: boolean;
   initialStage: 'Interview' | 'Assessment';
@@ -86,6 +87,7 @@ export class InterviewGateway {
         candidateId: candidateInterview.candidateId._id,
         position: candidateInterview.interviewId.role,
         candidateName: candidateInterview.candidateId.fullName,
+        companyName: 'IFS', // TODO: Get the company name from DB
         difficulty: candidateInterview.interviewId.skillLevel,
         isAssessment: candidateInterview.interviewId.includeTechnicalAssessment,
         initialStage: 'Interview',
@@ -103,6 +105,7 @@ export class InterviewGateway {
         threadId: session.interviewThreadId,
         position: session.position,
         candidateName: session.candidateName,
+        companyName: session.companyName,
       });
 
       client.emit('interview-message', { message });
@@ -128,11 +131,16 @@ export class InterviewGateway {
           threadId: session.interviewThreadId,
           position: session.position,
           candidateName: session.candidateName,
+          companyName: session.companyName,
           message: payload.message,
         });
 
+      client.emit('interview-message', { message });
+
       if (endInterview) {
-        const results = await this.aiService.evaluateInterview(client.id);
+        const results = await this.aiService.evaluateInterview({
+          threadId: session.interviewThreadId,
+        });
 
         if (session.isAssessment) {
           client.emit('start-assessment');
@@ -140,10 +148,12 @@ export class InterviewGateway {
           client.emit('interview-end');
         }
 
-        // TODO: Update Technical interview Results
+        await this.interviewService.saveInterviewResults(
+          session.interviewId,
+          session.candidateId,
+          results,
+        );
       }
-
-      client.emit('interview-message', { message });
     } catch (error) {
       client.emit('error', { message: error.message });
     }

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Client } from '@langchain/langgraph-sdk';
 
 import { SkillLevel } from 'src/interview/enums/interview.enum';
+import { TechnicalInterview } from 'src/interview/schemas/interview-sections.schema';
 
 type InterviewMessage = {
   content: string;
@@ -11,6 +12,7 @@ type InterviewMessage = {
 
 type InterviewResponse = {
   messages: InterviewMessage[];
+  evaluation: Omit<TechnicalInterview, 'transcript'>;
 };
 
 @Injectable()
@@ -26,10 +28,12 @@ export class AiService {
     threadId,
     candidateName,
     position,
+    companyName,
   }: {
     threadId: string;
     candidateName: string;
     position: string;
+    companyName: string;
   }) {
     const messages = [{ role: 'human', content: 'Hi' }];
 
@@ -38,6 +42,7 @@ export class AiService {
         messages,
         position,
         candidate: candidateName,
+        company: companyName,
       },
     });
 
@@ -51,11 +56,13 @@ export class AiService {
     threadId,
     candidateName,
     position,
+    companyName,
     message,
   }: {
     threadId: string;
     candidateName: string;
     position: string;
+    companyName: string;
     message: string;
   }) {
     const messages = [{ role: 'human', content: message }];
@@ -65,6 +72,7 @@ export class AiService {
         messages,
         position,
         candidate: candidateName,
+        company: companyName,
       },
     });
 
@@ -80,8 +88,19 @@ export class AiService {
     };
   }
 
-  async evaluateInterview(sessionId: string) {
-    return;
+  async evaluateInterview({ threadId }: { threadId: string }) {
+    const response = await this.client.runs.wait(threadId, 'interview_agent', {
+      input: { route: 'evaluate' },
+    });
+
+    const { messages, evaluation } = response as unknown as InterviewResponse;
+
+    const transcript = messages.slice(1).map((m) => ({
+      role: m.type === 'ai' ? 'Interviewer' : 'Candidate',
+      content: m.content,
+    }));
+
+    return { ...evaluation, transcript };
   }
 
   // Assessment
