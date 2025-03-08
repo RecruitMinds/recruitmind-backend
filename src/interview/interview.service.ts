@@ -848,7 +848,12 @@ export class InterviewService {
     return await this.candidateInterviewModel
       .updateOne(
         { interviewId, candidateId },
-        { $set: { technicalInterview: results, status: 'COMPLETED' } },
+        {
+          $set: {
+            technicalInterview: results,
+            status: CaInterviewStatus.COMPLETED,
+          },
+        },
       )
       .exec();
   }
@@ -861,7 +866,12 @@ export class InterviewService {
     return await this.candidateInterviewModel
       .updateOne(
         { interviewId, candidateId },
-        { $set: { technicalAssessment: results, status: 'COMPLETED' } },
+        {
+          $set: {
+            technicalAssessment: results,
+            status: CaInterviewStatus.COMPLETED,
+          },
+        },
       )
       .exec();
   }

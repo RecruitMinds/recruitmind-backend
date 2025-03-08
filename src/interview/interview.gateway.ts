@@ -98,7 +98,7 @@ export class InterviewGateway {
       await this.interviewService.updateInterviewStatus(
         session.interviewId.toString(),
         session.candidateId.toString(),
-        'STARTED',
+        InterviewStatus.STARTED,
       );
 
       const message = await this.aiService.startTechnicalInterview({
