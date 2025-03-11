@@ -3,7 +3,7 @@ import { TechnicalInterview } from 'src/interview/schemas/interview-sections.sch
 export type InterviewMessage = {
   content: string;
   type: 'human' | 'ai' | 'tool';
-  name: 'generate_assessment' | null;
+  name: 'get_assessment' | null;
   tool_calls?: [object];
 };
 

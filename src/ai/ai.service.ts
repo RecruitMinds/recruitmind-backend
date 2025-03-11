@@ -188,7 +188,7 @@ export class AiService {
     if (
       secondLastMessage &&
       secondLastMessage.type === 'tool' &&
-      secondLastMessage.name === 'generate_assessment'
+      secondLastMessage.name === 'get_assessment'
     ) {
       assessment = secondLastMessage.content;
     }
