@@ -52,11 +52,15 @@ export class AiService {
     candidateName,
     position,
     companyName,
+    skills,
+    experience,
   }: {
     threadId: string;
     candidateName: string;
     position: string;
     companyName: string;
+    skills: string[];
+    experience: string;
   }) {
     const messages = [{ role: 'human', content: 'Hi' }];
 
@@ -66,6 +70,8 @@ export class AiService {
         position,
         candidate: candidateName,
         company: companyName,
+        skills,
+        experience,
       },
     });
 
