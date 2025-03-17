@@ -29,6 +29,8 @@ interface InterviewSession {
   difficulty: SkillLevel;
   isAssessment: boolean;
   initialStage: 'Interview' | 'Assessment';
+  skills: string[];
+  experience: string;
 }
 
 type MongoDocument<T> = Document<unknown, any, T> & T & { _id: Types.ObjectId };
@@ -91,6 +93,8 @@ export class InterviewGateway {
         difficulty: candidateInterview.interviewId.skillLevel,
         isAssessment: candidateInterview.interviewId.includeTechnicalAssessment,
         initialStage: 'Interview',
+        skills: candidateInterview.interviewId.skills,
+        experience: candidateInterview.interviewId.experience,
       };
 
       this.activeSessions.set(client.id, session);
@@ -106,6 +110,8 @@ export class InterviewGateway {
         position: session.position,
         candidateName: session.candidateName,
         companyName: session.companyName,
+        skills: session.skills,
+        experience: session.experience,
       });
 
       client.emit('interview-message', { message });

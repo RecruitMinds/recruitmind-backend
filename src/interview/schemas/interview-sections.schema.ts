@@ -26,6 +26,19 @@ export class TechnicalInterview {
 
   @Prop([
     {
+      skill: String,
+      evaluation: String,
+      score: String,
+    },
+  ])
+  skillsEvaluation: Array<{
+    skill: string;
+    evaluation: string;
+    score: string;
+  }>;
+
+  @Prop([
+    {
       role: String,
       content: String,
     },

@@ -14,7 +14,10 @@ export class Interview {
   name: string;
 
   @Prop()
-  description: string;
+  experience: string;
+
+  @Prop()
+  skills: string[];
 
   @Prop()
   role: string;

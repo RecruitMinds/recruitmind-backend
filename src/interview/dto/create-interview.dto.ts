@@ -2,9 +2,9 @@ import { ApiProperty } from '@nestjs/swagger';
 import {
   IsString,
   IsEnum,
-  IsOptional,
   IsBoolean,
   ValidateIf,
+  IsArray,
 } from 'class-validator';
 import {
   InterviewStatus,
@@ -18,9 +18,13 @@ export class CreateInterviewDto {
   name: string;
 
   @ApiProperty()
-  @IsOptional()
   @IsString()
-  description?: string;
+  experience: string;
+
+  @ApiProperty()
+  @IsArray()
+  @IsString({ each: true })
+  skills: string[];
 
   @ApiProperty()
   @IsString()
