@@ -537,6 +537,7 @@ export class InterviewService {
                 },
               },
             },
+            skillsEvaluation: '$technicalInterview.skillsEvaluation',
           },
           technicalAssessment: {
             totalScore: '$technicalAssessment.totalScore',
