@@ -149,7 +149,7 @@ export class InterviewGateway {
         });
 
         if (session.isAssessment) {
-          client.emit('start-assessment');
+          client.emit('assessment-transition');
         } else {
           client.emit('interview-end');
         }
