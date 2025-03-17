@@ -208,6 +208,10 @@ export class InterviewGateway {
         });
 
       if (assessment) {
+        client.emit('assessment-message', {
+          message:
+            "Great! Here's your coding question. Please read it carefully and submit your solution when you're ready.",
+        });
         client.emit('assessment', { assessment });
       } else {
         client.emit('assessment-message', { message });
