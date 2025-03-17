@@ -759,7 +759,7 @@ export class InterviewService {
           name: `${candidate.firstName} ${candidate.lastName}`,
           role: interview.role,
           company: 'IFS',
-          invitationLink: `http://localhost:3001/interview?token=${invitationToken}`,
+          invitationLink: `http://localhost:3001/${invitationToken}/intro`,
         });
       },
     );
