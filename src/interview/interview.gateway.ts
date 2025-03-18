@@ -151,6 +151,12 @@ export class InterviewGateway {
         if (session.isAssessment) {
           client.emit('assessment-transition');
         } else {
+          await this.interviewService.updateInterviewStatus(
+            session.interviewId.toString(),
+            session.candidateId.toString(),
+            InterviewStatus.COMPLETED,
+          );
+
           client.emit('interview-end');
         }
 

@@ -852,7 +852,6 @@ export class InterviewService {
         {
           $set: {
             technicalInterview: results,
-            status: CaInterviewStatus.COMPLETED,
           },
         },
       )
