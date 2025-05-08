@@ -9,6 +9,7 @@ import { Socket, Server } from 'socket.io';
 import { UnauthorizedException } from '@nestjs/common';
 import { Types, Document } from 'mongoose';
 import { Client, Thread } from '@langchain/langgraph-sdk';
+import { ConfigService } from '@nestjs/config';
 
 import { InterviewService } from './interview.service';
 import { AiService } from 'src/ai/ai.service';
@@ -54,8 +55,11 @@ export class InterviewGateway {
   constructor(
     private readonly interviewService: InterviewService,
     private readonly aiService: AiService,
+    private readonly configService: ConfigService,
   ) {
-    this.client = new Client();
+    this.client = new Client({
+      apiUrl: this.configService.get('LANGGRAPH_API_URL'),
+    });
   }
 
   @SubscribeMessage('start-interview')

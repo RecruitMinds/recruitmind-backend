@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Client } from '@langchain/langgraph-sdk';
 
 import { SkillLevel } from 'src/interview/enums/interview.enum';
@@ -16,8 +17,10 @@ import {
 export class AiService {
   private readonly client: Client;
 
-  constructor() {
-    this.client = new Client();
+  constructor(private readonly configService: ConfigService) {
+    this.client = new Client({
+      apiUrl: this.configService.get('LANGGRAPH_API_URL'),
+    });
   }
 
   private extractTranscript(
