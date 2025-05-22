@@ -15,6 +15,7 @@ import { ApiOperation, ApiParam, ApiQuery } from '@nestjs/swagger';
 
 import { InterviewService } from './interview.service';
 import { MongoIdPipe } from 'src/common/pipes/mongo-id.pipe';
+import { Public } from 'src/common/decorators/public.decorator';
 import { ClerkAuthGuard } from 'src/common/guards/clerk-auth.guard';
 import { Recruiter } from 'src/common/decorators/recruiter.decorator';
 
@@ -194,5 +195,12 @@ export class InterviewController {
       recruiterId,
       inviteDto,
     );
+  }
+
+  @Public()
+  @Get('validate-invitation/:token')
+  @ApiOperation({ summary: 'Validate invitation token' })
+  async validateInvitation(@Param('token') token: string) {
+    return this.interviewService.validateInvitation(token);
   }
 }

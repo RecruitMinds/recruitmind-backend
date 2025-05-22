@@ -875,4 +875,31 @@ export class InterviewService {
       )
       .exec();
   }
+
+  // For Candidate invitation validation in interview frontend
+  async validateInvitation(token: string) {
+    const candidateInterview = await this.candidateInterviewModel
+      .findOne({
+        invitationToken: token,
+      })
+      .populate<{ candidateId: Candidate }>({
+        path: 'candidateId',
+      })
+      .populate<{ interviewId: Interview }>({ path: 'interviewId' });
+
+    if (!candidateInterview) {
+      throw new NotFoundException('Invalid invitation token');
+    }
+
+    const { candidateId, interviewId, status } = candidateInterview.toObject();
+
+    return {
+      firstName: candidateId.firstName,
+      lastName: candidateId.lastName,
+      role: interviewId.role,
+      includeTechnicalAssessment: interviewId.includeTechnicalAssessment,
+      status: status,
+      company: 'IFS', // Manually added company
+    };
+  }
 }
