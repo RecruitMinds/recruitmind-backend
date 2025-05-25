@@ -587,6 +587,7 @@ export class InterviewService {
           },
           rating: 1,
           comment: 1,
+          invitationToken: 1,
           bestScore: { $max: '$allCandidateInterviews.totalScore' },
           includeTechnicalAssessment: '$interview.includeTechnicalAssessment',
           overallScore: {
