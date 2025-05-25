@@ -303,6 +303,12 @@ export class InterviewGateway {
     }
   }
 
+  // Add ping handler to keep connection alive
+  @SubscribeMessage('ping')
+  handlePing(@ConnectedSocket() client: Socket) {
+    client.emit('pong');
+  }
+
   handleDisconnect(client: Socket) {
     console.log(`Client disconnected: ${client.id}`);
   }
