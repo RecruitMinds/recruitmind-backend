@@ -10,6 +10,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import { Types, Document } from 'mongoose';
 import { Client, Thread } from '@langchain/langgraph-sdk';
 import { ConfigService } from '@nestjs/config';
+import { Redis } from '@upstash/redis';
 
 import { InterviewService } from './interview.service';
 import { AiService } from 'src/ai/ai.service';
@@ -50,7 +51,7 @@ interface PopulatedCandidateInterview
 export class InterviewGateway {
   @WebSocketServer() server: Server;
   private readonly client: Client;
-  private activeSessions: Map<string, InterviewSession> = new Map();
+  private redis: Redis;
 
   constructor(
     private readonly interviewService: InterviewService,
@@ -60,6 +61,36 @@ export class InterviewGateway {
     this.client = new Client({
       apiUrl: this.configService.get('LANGGRAPH_API_URL'),
     });
+    this.redis = new Redis({
+      url: this.configService.get('UPSTASH_REDIS_URL'),
+      token: this.configService.get('UPSTASH_REDIS_TOKEN'),
+    });
+  }
+
+  private async saveSession(sessionId: string, session: InterviewSession) {
+    try {
+      await this.redis.set(`interview_session:${sessionId}`, session, {
+        ex: 86400,
+      });
+    } catch (error) {
+      console.error('Failed to save session to Redis:', error);
+    }
+  }
+
+  private async getSession(
+    sessionId: string,
+  ): Promise<InterviewSession | null> {
+    try {
+      const sessionData = await this.redis.get(
+        `interview_session:${sessionId}`,
+      );
+
+      if (!sessionData) return null;
+      return sessionData as InterviewSession;
+    } catch (error) {
+      console.error('Failed to retrieve session from Redis:', error);
+      return null;
+    }
   }
 
   @SubscribeMessage('start-interview')
@@ -88,7 +119,7 @@ export class InterviewGateway {
 
       const session: InterviewSession = {
         interviewThreadId: interviewThread.thread_id,
-        assessmentThreadId: assessmentThread.thread_id,
+        assessmentThreadId: assessmentThread?.thread_id,
         interviewId: candidateInterview.interviewId._id,
         candidateId: candidateInterview.candidateId._id,
         position: candidateInterview.interviewId.role,
@@ -101,7 +132,7 @@ export class InterviewGateway {
         experience: candidateInterview.interviewId.experience,
       };
 
-      this.activeSessions.set(client.id, session);
+      await this.saveSession(client.id, session);
 
       await this.interviewService.updateInterviewStatus(
         session.interviewId.toString(),
@@ -130,7 +161,7 @@ export class InterviewGateway {
     @MessageBody() payload: { message: string },
   ) {
     try {
-      const session = this.activeSessions.get(client.id);
+      const session = await this.getSession(client.id);
 
       if (!session) {
         throw new UnauthorizedException('Invalid session');
@@ -178,7 +209,7 @@ export class InterviewGateway {
   @SubscribeMessage('start-assessment')
   async handleStartAssessment(@ConnectedSocket() client: Socket) {
     try {
-      const session = this.activeSessions.get(client.id);
+      const session = await this.getSession(client.id);
 
       if (!session) {
         throw new UnauthorizedException('Invalid session');
@@ -202,7 +233,7 @@ export class InterviewGateway {
     @MessageBody() payload: { message: string },
   ) {
     try {
-      const session = this.activeSessions.get(client.id);
+      const session = await this.getSession(client.id);
 
       if (!session) {
         throw new UnauthorizedException('Invalid session');
@@ -251,7 +282,7 @@ export class InterviewGateway {
     @MessageBody() payload: { solution: string },
   ) {
     try {
-      const session = this.activeSessions.get(client.id);
+      const session = await this.getSession(client.id);
 
       if (!session) {
         throw new UnauthorizedException('Invalid session');
@@ -273,6 +304,6 @@ export class InterviewGateway {
   }
 
   handleDisconnect(client: Socket) {
-    this.activeSessions.delete(client.id);
+    console.log(`Client disconnected: ${client.id}`);
   }
 }
